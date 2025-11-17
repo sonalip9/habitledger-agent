@@ -88,6 +88,146 @@ These principles are stored in a small internal **behaviour knowledge base**, wh
 
 ---
 
+## 🔁 Agent Loop & Capabilities
+
+**This is an agent, not just a one-off LLM call.** HabitLedger operates through a continuous interaction loop that maintains state, uses tools, and adapts over time.
+
+### Agent Goal
+
+HabitLedger optimizes for:
+
+- **Improved financial habits** – More consistent savings, reduced impulsive spending
+- **Behavior consistency** – Building and maintaining positive routines over days/weeks
+- **Self-awareness** – Helping users recognize emotional triggers and biases
+- **Sustainable change** – Small, realistic interventions that compound over time
+
+### Inputs
+
+The agent receives:
+
+- **User messages** – Natural language descriptions of behavior, goals, struggles, and check-ins
+- **Context from memory** – Previous goals, tracked habits, past interventions, and identified patterns
+- **Temporal information** – Time since last check-in, current day of week/month (for pattern detection)
+
+### Internal State / Memory
+
+The agent maintains persistent memory across interactions:
+
+```python
+{
+  "user_id": "...",
+  "goals": [
+    {"type": "savings", "target": "Save ₹5000/month", "start_date": "2024-11-01"}
+  ],
+  "streaks": {
+    "no_food_delivery": {"current": 12, "best": 15, "last_updated": "2024-11-17"}
+  },
+  "struggles": [
+    {"description": "Impulse spending on weekends", "first_noted": "2024-11-03", "count": 4}
+  ],
+  "interventions": [
+    {"date": "2024-11-10", "type": "friction_increase", "description": "Delete food apps"}
+  ],
+  "last_check_in": "2024-11-16",
+  "behaviour_patterns": {
+    "end_of_month_overspending": {"detected": true, "occurrences": 2}
+  }
+}
+```
+
+### Tools
+
+The agent uses the following tools to generate informed responses:
+
+1. **Behaviour Knowledge Base** (`data/behaviour_principles.json`)
+   - Stores behavioural science principles (habit loops, loss aversion, commitment devices, etc.)
+   - Maps user situations to relevant concepts
+   - Provides intervention templates based on proven strategies
+
+2. **Memory Store** (`memory.py`)
+   - Reads and writes user state to persistent storage
+   - Retrieves goals, streaks, struggles, and past interventions
+   - Updates progress tracking and maintains history
+
+3. **Behaviour Engine** (`behaviour_engine.py`)
+   - Analyzes user input to detect patterns and biases
+   - Matches situations to behavioural principles
+   - Generates tailored interventions based on context
+
+### Agent Loop
+
+The core interaction loop operates as follows:
+
+```text
+1. RECEIVE user message
+   ↓
+2. READ memory (goals, streaks, struggles, last check-in, patterns)
+   ↓
+3. ANALYZE user input
+   - Extract intent (check-in, struggle, question, reflection)
+   - Detect emotions or triggers
+   - Identify relevant time context
+   ↓
+4. LOOKUP behaviour principles
+   - Query knowledge base for relevant concepts
+   - Match user situation to biases/patterns
+   - Select appropriate intervention strategies
+   ↓
+5. REASON & PLAN
+   - Generate personalized response
+   - Suggest specific, actionable micro-habits
+   - Explain behavioral science rationale
+   - Set follow-up expectations
+   ↓
+6. UPDATE memory
+   - Record new struggles or patterns
+   - Update streak counts
+   - Log interventions suggested
+   - Set next check-in reminder
+   ↓
+7. RESPOND to user with coaching message
+   ↓
+8. WAIT for next interaction (loop continues)
+```
+
+### Autonomy Aspects
+
+HabitLedger demonstrates agent autonomy through:
+
+1. **Multi-step Progress Tracking**
+   - Initiates check-ins based on time elapsed
+   - Proactively asks about specific goals or struggles
+   - Follows up on previously suggested interventions
+
+2. **Adaptive Interventions**
+   - Adjusts recommendations based on what worked/didn't work
+   - Escalates or de-escalates strategies based on user progress
+   - Recognizes when to switch behavioral approaches
+
+3. **Pattern Recognition & Anticipation**
+   - Detects recurring patterns (e.g., "weekend spending spikes")
+   - Anticipates high-risk situations (e.g., "end of month approaching")
+   - Proactively suggests preventive interventions
+
+4. **Guided Multi-Day Journeys**
+   - Breaks long-term goals into weekly/daily micro-habits
+   - Celebrates small wins to maintain motivation
+   - Adjusts timeline and difficulty based on user feedback
+
+**Example multi-day flow:**
+
+```text
+Day 1:  User sets goal → Agent creates habit plan
+Day 3:  Agent checks in → User reports success → Agent reinforces
+Day 7:  Agent detects struggle → Suggests friction-reduction strategy
+Day 10: Agent follows up → User confirms improvement → Updates memory
+Day 14: Weekly reflection → Agent summarizes progress and patterns
+```
+
+This continuous, stateful operation distinguishes HabitLedger as a true **agent** rather than a simple chatbot
+
+---
+
 ## 🚀 Key Features
 
 ### 1. Habit Coaching
