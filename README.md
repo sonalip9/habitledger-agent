@@ -8,20 +8,63 @@ This project is created as part of the **Agents Intensive – Capstone Project o
 
 ---
 
-## 📌 What HabitLedger Does
+## ❓ Problem Statement
 
-HabitLedger helps users:
+Most people know *what* they should do with money: save regularly, avoid impulse purchases, stick to a budget. Yet, knowing isn't enough.
+
+**The real struggle is behavioural:**
+
+- You intend to save, but spend on food delivery "just this once" (again)
+- You set up a SIP, then stop after a few months
+- You create a budget, but never look at it again
+- Emotional triggers—stress, boredom, FOMO—override your financial plans
+
+Traditional finance apps focus on tracking transactions or recommending investments. They don't address the **habits, emotions, and biases** that drive day-to-day money decisions.
+
+**The gap:** People need ongoing, personalised support to build and maintain healthy financial habits—not just advice, but *behavioural coaching* that adapts to their struggles over time.
+
+---
+
+## ✅ Solution Overview
+
+**HabitLedger is an AI agent designed to bridge this gap.**
+
+Instead of offering financial advice, HabitLedger acts as a **behavioural money coach** that:
+
+### Why an Agent?
+
+1. **Continuous Interaction**  
+   Financial habits aren't built in a single session. HabitLedger engages users over days and weeks through check-ins, reflections, and progress tracking.
+
+2. **Contextual Memory**  
+   The agent remembers your goals, past struggles, and progress. It recognizes patterns (like "end-of-month overspending") and adapts interventions accordingly.
+
+3. **Behaviour-Driven Interventions**  
+   Using principles from behavioural science (habit loops, loss aversion, friction reduction, commitment devices), HabitLedger suggests small, actionable changes tailored to your situation—not generic tips.
+
+4. **Personalized & Adaptive**  
+   The agent analyzes your behaviour, identifies underlying biases, and responds with interventions that match your specific challenges and context.
+
+### What It Does
+
+- **Tracks habits:** Daily check-ins about spending, saving, and budgeting routines
+- **Identifies patterns:** Detects recurring struggles and links them to behavioural concepts
+- **Suggests micro-interventions:** Small, realistic actions based on proven behaviour change strategies
+- **Explains the "why":** Helps you understand the behavioural science behind each suggestion
+- **Maintains streaks & progress:** Keeps you motivated with simple tracking and summaries
+
+**Result:** A coach that helps you change *how* you relate to money, one small habit at a time.
+
+### What HabitLedger Helps You Do
 
 - Build consistency with savings or SIPs  
 - Reduce impulse spending (for example, food delivery or online shopping)  
 - Set and maintain simple budgeting routines  
 - Reflect on emotional triggers behind money decisions  
-- Receive small, actionable interventions based on behavioural science  
-- Track progress over days or weeks  
+- Track progress over days or weeks with streak tracking
+- Receive personalized, actionable interventions (not generic advice)
 
-HabitLedger is **not** a financial advisory tool.  
-It does **not** recommend specific stocks, funds, or tax schemes.  
-Its focus is on behaviour, routines, and mindset.
+**Important:** HabitLedger is **not** a financial advisory tool. It does **not** recommend specific stocks, funds, or tax schemes. Its focus is purely on behaviour, routines, and mindset.
 
 ---
 
