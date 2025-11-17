@@ -1,3 +1,166 @@
 {
-    "description": "Behaviour science & habit strategies knowledge base for HabitLedger"
+    "version": "1.0",
+    "description": "Behaviour science & habit strategies knowledge base for HabitLedger",
+    "principles": [
+        {
+            "id": "loss_aversion",
+            "name": "Loss Aversion",
+            "description": "People feel the pain of losing something more strongly than the pleasure of gaining something of equal value. This can be leveraged to motivate consistent saving and discourage impulsive spending.",
+            "typical_triggers": [
+                "Fear of missing savings goals",
+                "Regret over past impulse purchases",
+                "Worry about financial security",
+                "Breaking a savings streak",
+                "Seeing money leave the account"
+            ],
+            "interventions": [
+                "Frame savings as 'not losing money to future you' rather than gaining interest",
+                "Track and visualize what you'd lose by breaking your savings streak",
+                "Calculate and display the opportunity cost of impulse purchases",
+                "Set up alerts showing 'money saved' rather than 'money spent'",
+                "Create a 'regret journal' to record feelings after impulse buys"
+            ]
+        },
+        {
+            "id": "habit_loops",
+            "name": "Habit Loops (Cue → Routine → Reward)",
+            "description": "Habits follow a three-step pattern: a cue triggers a routine, which leads to a reward. To change habits, identify the cue and reward, then substitute a better routine.",
+            "typical_triggers": [
+                "Specific times of day (lunch, evening)",
+                "Emotional states (stress, boredom, celebration)",
+                "Locations (near favorite restaurant, shopping mall)",
+                "Social situations (friends suggesting eating out)",
+                "End of work day fatigue"
+            ],
+            "interventions": [
+                "Identify your impulse spending cues (time, place, emotion, people)",
+                "Replace bad routine: instead of food delivery when stressed, take a 5-minute walk",
+                "Link savings to existing habits: 'After morning coffee, transfer ₹100 to savings'",
+                "Create reward substitutes: track streak days and celebrate milestones",
+                "Change your environment to remove cues (delete shopping apps, avoid trigger locations)"
+            ]
+        },
+        {
+            "id": "commitment_devices",
+            "name": "Commitment Devices",
+            "description": "Tools or strategies that lock you into good behavior by making it harder or costly to deviate from your goals. Pre-commitment helps overcome future temptation.",
+            "typical_triggers": [
+                "Difficulty maintaining willpower over time",
+                "Temptation to skip savings contributions",
+                "Uncertainty about sticking to budget",
+                "Past failures with self-control",
+                "Upcoming high-risk situations (sales, events)"
+            ],
+            "interventions": [
+                "Set up automatic transfers to savings account on payday",
+                "Use apps that lock money away until a specific date or goal",
+                "Share your goal with a friend or family member for accountability",
+                "Pre-commit to spending limits: leave credit card at home before shopping",
+                "Schedule bill payments immediately after receiving income",
+                "Join a savings challenge or accountability group"
+            ]
+        },
+        {
+            "id": "temptation_bundling",
+            "name": "Temptation Bundling",
+            "description": "Pair an unpleasant but beneficial activity with something you enjoy. This makes the good habit more attractive and easier to maintain.",
+            "typical_triggers": [
+                "Difficulty finding motivation for good habits",
+                "Viewing saving as a sacrifice or punishment",
+                "Boredom with financial routines",
+                "Need for immediate gratification",
+                "Resistance to budget reviews"
+            ],
+            "interventions": [
+                "Allow yourself a favorite podcast only while reviewing your budget",
+                "Treat yourself to a nice tea/coffee while checking savings progress",
+                "Watch a favorite show only on 'no-spend' evenings at home",
+                "Listen to music you love while meal prepping (saves money on takeout)",
+                "Combine weekly budget check with a relaxing Sunday morning routine",
+                "Reward streak milestones with small, affordable treats (not spending sprees)"
+            ]
+        },
+        {
+            "id": "friction_reduction",
+            "name": "Friction Reduction (Make Good Habits Easy)",
+            "description": "Reduce the steps, effort, or time required to perform a good habit. The easier something is, the more likely you are to do it consistently.",
+            "typical_triggers": [
+                "Complicated savings processes",
+                "Difficulty tracking expenses",
+                "Too many steps to pay bills",
+                "Unclear or confusing financial goals",
+                "Inconvenient banking processes"
+            ],
+            "interventions": [
+                "Set up automatic SIP or recurring deposit on payday",
+                "Use simple expense tracking apps or pre-made budget templates",
+                "Keep budget spreadsheet open and visible on your desktop",
+                "Pre-schedule bill payments to avoid late fees and decision fatigue",
+                "Simplify goals: 'Save ₹5000/month' instead of complex formulas",
+                "Enable one-click savings transfers in your banking app"
+            ]
+        },
+        {
+            "id": "friction_increase",
+            "name": "Friction Increase (Make Bad Habits Hard)",
+            "description": "Add steps, delays, or obstacles to undesirable behaviors. Making bad habits inconvenient reduces the likelihood of following through on impulses.",
+            "typical_triggers": [
+                "Easy access to spending platforms",
+                "One-click purchasing enabled",
+                "Credit cards readily available",
+                "Food delivery apps on phone home screen",
+                "Saved payment information"
+            ],
+            "interventions": [
+                "Delete food delivery and shopping apps from your phone",
+                "Remove saved payment info from online shopping sites",
+                "Keep credit cards in a drawer, not in your wallet",
+                "Log out of shopping accounts after each use",
+                "Add a 24-hour waiting rule before any non-essential purchase",
+                "Unsubscribe from promotional emails and marketing notifications",
+                "Use cash for discretionary spending (requires ATM trip, adds friction)"
+            ]
+        },
+        {
+            "id": "default_effect",
+            "name": "Default Effect",
+            "description": "People tend to stick with the default option. By changing defaults, you can guide behavior toward better financial decisions without requiring active choices.",
+            "typical_triggers": [
+                "Inertia and decision fatigue",
+                "Need to make repeated financial decisions",
+                "Opportunity to automate good behavior",
+                "Setting up new accounts or services",
+                "Lack of proactive financial planning"
+            ],
+            "interventions": [
+                "Set default savings: automatically transfer percentage of income to savings",
+                "Default to 'no' for optional purchases unless you actively decide 'yes'",
+                "Set your investment or retirement contribution to auto-increase annually",
+                "Make home-cooked meals your default dinner plan, eating out the exception",
+                "Default to packed lunch; buying lunch requires conscious decision",
+                "Auto-pay bills to make timely payment the default"
+            ]
+        },
+        {
+            "id": "micro_habits",
+            "name": "Micro-Habits (2-Minute Rule)",
+            "description": "Start with a habit so small it takes less than 2 minutes. Tiny habits are easier to start and build momentum for larger behavior change over time.",
+            "typical_triggers": [
+                "Feeling overwhelmed by big financial goals",
+                "Past failures with ambitious plans",
+                "Lack of confidence in financial discipline",
+                "Need for quick wins to build motivation",
+                "Difficulty starting new routines"
+            ],
+            "interventions": [
+                "Start by saving just ₹50 per day instead of a large monthly amount",
+                "Check your bank balance once a day for 2 minutes (builds awareness)",
+                "Write down one expense each evening (leads to full expense tracking)",
+                "Transfer ₹100 to savings immediately after reading this (instant action)",
+                "Delete one shopping app today (small step toward reducing temptation)",
+                "Review just one line item in your budget each day",
+                "Celebrate every small win: 'I chose water over a ₹200 coffee today'"
+            ]
+        }
+    ]
 }
