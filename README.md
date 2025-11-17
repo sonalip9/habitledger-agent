@@ -210,6 +210,48 @@ This can start a simple text-based chat loop with the coach.
 
 ---
 
+## 🧭 Competition Track & Scoring Mapping
+
+### **Track Selected: Concierge Agents**
+
+This track covers agents designed to help individuals manage and improve aspects of their personal lives  
+—for example: travel planning, meal prep, shopping automation, habit-building, or other daily routines.
+
+**HabitLedger fits this track perfectly** because it is a behavioural money coach designed to help users:
+
+- build better financial habits,
+- reduce impulse spending,
+- maintain savings/budget routines,
+- and improve everyday financial decision-making.
+
+It behaves like a personalised **financial habit concierge** that guides, nudges, and adapts to the user over time.
+
+---
+
+### 🏆 How HabitLedger Meets the Competition Scoring Criteria
+
+| Criterion | How HabitLedger satisfies it |
+|----------|-------------------------------|
+| **Problem Relevance** | Addresses the widespread issue of inconsistent financial habits and impulsive spending — a major everyday productivity barrier. |
+| **Agentic Design** | Maintains user memory (goals, streaks), uses a behaviour-principles knowledge base as a “tool”, performs multi-turn reasoning and adaptive interactions. |
+| **Technical Execution** | Modular Python structure (`coach.py`, `behaviour_engine.py`, `memory.py`), documented code, single-purpose functions, DRY, clean commits. |
+| **User Experience & Novelty** | Provides personalised interventions grounded in behavioural science, making the agent feel like a real habit coach rather than a generic chatbot. |
+| **Evaluation & Impact** | Includes structured test scenarios (missed SIP, impulsive spend, budgeting challenge) and measures progress via streaks, goal tracking, and behaviour patterns. |
+
+---
+
+### 🎯 Awards Positioning Strategy
+
+- HabitLedger aims for awards in **Concierge Agent excellence** by demonstrating:
+  - long-term interaction loops,
+  - adaptive behaviour,
+  - meaningful improvements to daily life (financial habits),
+  - clarity and structure in user guidance.
+- The demo notebook presents clear user journeys and behaviour-change processes.
+- The storytelling and architecture highlight HabitLedger as a true **agent** — not just an LLM wrapper.
+
+---
+
 ## 🧪 Evaluation
 
 HabitLedger can be evaluated on:
