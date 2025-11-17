@@ -88,7 +88,7 @@ These principles are stored in a small internal **behaviour knowledge base**, wh
 
 ---
 
-## 🔁 Agent Loop & Capabilities
+## 🏗️ Architecture & Agent Flow
 
 **This is an agent, not just a one-off LLM call.** HabitLedger operates through a continuous interaction loop that maintains state, uses tools, and adapts over time.
 
@@ -101,13 +101,41 @@ HabitLedger optimizes for:
 - **Self-awareness** – Helping users recognize emotional triggers and biases
 - **Sustainable change** – Small, realistic interventions that compound over time
 
-### Inputs
+### System Components
 
-The agent receives:
+HabitLedger follows a modular architecture where each component has a clear, single responsibility:
 
-- **User messages** – Natural language descriptions of behavior, goals, struggles, and check-ins
-- **Context from memory** – Previous goals, tracked habits, past interventions, and identified patterns
-- **Temporal information** – Time since last check-in, current day of week/month (for pattern detection)
+**1. `coach.py` – The Orchestrator**
+
+- Central controller that manages the interaction loop
+- Receives user input and coordinates all other components
+- Calls the behaviour engine to analyze input and generate interventions
+- Invokes memory module to read/write state
+- Constructs final responses and manages conversation flow
+
+**2. `behaviour_engine.py` – The Intelligence Layer**
+
+- Analyzes user messages to detect patterns, biases, and emotional triggers
+- Queries the behaviour knowledge base for relevant principles
+- Matches user situations to appropriate behavioural concepts
+- Generates tailored intervention strategies based on context
+- Returns structured recommendations with rationale
+
+**3. `memory.py` – The State Manager**
+
+- Persists user data across sessions (goals, streaks, struggles, patterns)
+- Provides read/write operations for all state management
+- Tracks temporal information (last check-in, streak dates)
+- Maintains intervention history and user progress
+- Simple file-based or dict-based storage for demo purposes
+
+**4. `behaviour_principles.json` – The Knowledge Base (Tool)**
+
+- Static repository of behavioural science principles
+- Contains concepts like habit loops, loss aversion, commitment devices
+- Provides intervention templates and strategies
+- Maps triggers/situations to recommended approaches
+- Acts as the agent's "external tool" for grounding responses
 
 ### Internal State / Memory
 
@@ -135,84 +163,82 @@ The agent maintains persistent memory across interactions:
 }
 ```
 
-### Tools
+### Agent Flow
 
-The agent uses the following tools to generate informed responses:
-
-1. **Behaviour Knowledge Base** (`data/behaviour_principles.json`)
-   - Stores behavioural science principles (habit loops, loss aversion, commitment devices, etc.)
-   - Maps user situations to relevant concepts
-   - Provides intervention templates based on proven strategies
-
-2. **Memory Store** (`memory.py`)
-   - Reads and writes user state to persistent storage
-   - Retrieves goals, streaks, struggles, and past interventions
-   - Updates progress tracking and maintains history
-
-3. **Behaviour Engine** (`behaviour_engine.py`)
-   - Analyzes user input to detect patterns and biases
-   - Matches situations to behavioural principles
-   - Generates tailored interventions based on context
-
-### Agent Loop
-
-The core interaction loop operates as follows:
+The complete interaction flow from user input to updated state:
 
 ```text
-1. RECEIVE user message
-   ↓
-2. READ memory (goals, streaks, struggles, last check-in, patterns)
-   ↓
-3. ANALYZE user input
-   - Extract intent (check-in, struggle, question, reflection)
-   - Detect emotions or triggers
-   - Identify relevant time context
-   ↓
-4. LOOKUP behaviour principles
-   - Query knowledge base for relevant concepts
-   - Match user situation to biases/patterns
-   - Select appropriate intervention strategies
-   ↓
-5. REASON & PLAN
-   - Generate personalized response
-   - Suggest specific, actionable micro-habits
-   - Explain behavioral science rationale
-   - Set follow-up expectations
-   ↓
-6. UPDATE memory
-   - Record new struggles or patterns
-   - Update streak counts
-   - Log interventions suggested
-   - Set next check-in reminder
-   ↓
-7. RESPOND to user with coaching message
-   ↓
-8. WAIT for next interaction (loop continues)
+┌─────────────┐
+│    USER     │
+│   Input     │
+└──────┬──────┘
+       │
+       ▼
+┌─────────────────────────────────────────────────────────┐
+│                      COACH.PY                           │
+│                   (Orchestrator)                        │
+│                                                         │
+│  1. Receives user message                              │
+│  2. Loads current state from Memory                    │
+│  3. Sends (message + context) to Behaviour Engine      │
+│  4. Receives intervention plan                         │
+│  5. Formats response with explanation                  │
+│  6. Updates Memory with new data                       │
+│  7. Returns response to user                           │
+└───┬────────────────────────────────┬──────────────────┘
+    │                                │
+    ▼                                ▼
+┌──────────────────┐         ┌──────────────────┐
+│  MEMORY.PY       │         │ BEHAVIOUR_       │
+│  (State Manager) │         │ ENGINE.PY        │
+│                  │         │ (Intelligence)   │
+│ • Read state     │         │                  │
+│ • Write state    │         │ • Analyze input  │
+│ • Track streaks  │         │ • Detect pattern │
+│ • Store history  │         │ • Query KB       │
+└──────────────────┘         │ • Generate plan  │
+                             └────────┬─────────┘
+                                      │
+                                      ▼
+                             ┌──────────────────┐
+                             │ behaviour_       │
+                             │ principles.json  │
+                             │ (Knowledge Base) │
+                             │                  │
+                             │ • Habit loops    │
+                             │ • Loss aversion  │
+                             │ • Friction tactics│
+                             │ • Micro-habits   │
+                             └──────────────────┘
 ```
 
-### Autonomy Aspects
+### Autonomy & Multi-Step Behavior
 
-HabitLedger demonstrates agent autonomy through:
+HabitLedger demonstrates true agent autonomy through:
 
-1. **Multi-step Progress Tracking**
-   - Initiates check-ins based on time elapsed
-   - Proactively asks about specific goals or struggles
-   - Follows up on previously suggested interventions
+#### 1. Multi-step Progress Tracking
 
-2. **Adaptive Interventions**
-   - Adjusts recommendations based on what worked/didn't work
-   - Escalates or de-escalates strategies based on user progress
-   - Recognizes when to switch behavioral approaches
+- Initiates check-ins based on time elapsed
+- Proactively asks about specific goals or struggles
+- Follows up on previously suggested interventions
 
-3. **Pattern Recognition & Anticipation**
-   - Detects recurring patterns (e.g., "weekend spending spikes")
-   - Anticipates high-risk situations (e.g., "end of month approaching")
-   - Proactively suggests preventive interventions
+#### 2. Adaptive Interventions
 
-4. **Guided Multi-Day Journeys**
-   - Breaks long-term goals into weekly/daily micro-habits
-   - Celebrates small wins to maintain motivation
-   - Adjusts timeline and difficulty based on user feedback
+- Adjusts recommendations based on what worked/didn't work
+- Escalates or de-escalates strategies based on user progress
+- Recognizes when to switch behavioral approaches
+
+#### 3. Pattern Recognition & Anticipation
+
+- Detects recurring patterns (e.g., "weekend spending spikes")
+- Anticipates high-risk situations (e.g., "end of month approaching")
+- Proactively suggests preventive interventions
+
+#### 4. Guided Multi-Day Journeys
+
+- Breaks long-term goals into weekly/daily micro-habits
+- Celebrates small wins to maintain motivation
+- Adjusts timeline and difficulty based on user feedback
 
 **Example multi-day flow:**
 
@@ -223,6 +249,14 @@ Day 7:  Agent detects struggle → Suggests friction-reduction strategy
 Day 10: Agent follows up → User confirms improvement → Updates memory
 Day 14: Weekly reflection → Agent summarizes progress and patterns
 ```
+
+### Key Design Principles
+
+- **Separation of Concerns**: Each module has a single, well-defined purpose
+- **Stateful Operations**: Memory persists across sessions for continuous coaching
+- **Modular & Testable**: Components can be tested independently
+- **Tool Usage**: Knowledge base acts as external tool (similar to RAG pattern)
+- **Agentic Behavior**: Loop continues over multiple interactions with adaptive responses
 
 This continuous, stateful operation distinguishes HabitLedger as a true **agent** rather than a simple chatbot
 
