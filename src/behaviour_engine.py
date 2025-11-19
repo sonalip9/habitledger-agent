@@ -241,6 +241,43 @@ def _build_reason(
     return f"Detected {principle_name} based on your mention of {trigger_text}. This principle can help you address the pattern you described."
 
 
+def get_interventions(principle_id: str, behaviour_db: dict[str, Any]) -> list[str]:
+    """
+    Get intervention suggestions for a specific behavioural principle.
+
+    This function looks up a principle by ID in the behaviour database
+    and returns a subset of its intervention strategies.
+
+    Args:
+        principle_id: The ID of the behavioural principle (e.g., "loss_aversion").
+        behaviour_db: Dictionary containing behavioural principles from behaviour_principles.json.
+
+    Returns:
+        list[str]: A list of 1-2 intervention suggestions for the principle,
+                   or an empty list if principle not found.
+
+    Example:
+        >>> db = {"principles": [{"id": "friction_increase", "interventions": ["Delete apps", "Remove cards"]}]}
+        >>> interventions = get_interventions("friction_increase", db)
+        >>> print(len(interventions))
+        2
+    """
+    principles = behaviour_db.get("principles", [])
+
+    # Find the matching principle
+    principle_data = next(
+        (p for p in principles if p.get("id") == principle_id),
+        None,
+    )
+
+    if not principle_data:
+        return []
+
+    # Return top 1-2 interventions
+    all_interventions = principle_data.get("interventions", [])
+    return all_interventions[:2]
+
+
 def load_behaviour_db(db_path: str) -> dict[str, Any]:
     """
     Load the behaviour principles database from a JSON file.
