@@ -278,6 +278,47 @@ def get_interventions(principle_id: str, behaviour_db: dict[str, Any]) -> list[s
     return all_interventions[:2]
 
 
+def explain_principle(principle_id: str, behaviour_db: dict[str, Any]) -> str:
+    """
+    Generate a behavioural explanation for a detected principle.
+
+    This function retrieves the name and description of a behavioural principle
+    from the knowledge base and formats it as a clear, educational explanation
+    to help users understand the "why" behind suggested interventions.
+
+    Args:
+        principle_id: The ID of the behavioural principle (e.g., "loss_aversion").
+        behaviour_db: Dictionary containing behavioural principles from behaviour_principles.json.
+
+    Returns:
+        str: A formatted explanation of the principle including its name and description,
+             or a generic message if the principle is not found.
+
+    Example:
+        >>> db = {"principles": [{"id": "loss_aversion", "name": "Loss Aversion", "description": "We feel losses more..."}]}
+        >>> explanation = explain_principle("loss_aversion", db)
+        >>> print(explanation)
+        This suggestion is based on the principle of Loss Aversion — We feel losses more...
+    """
+    principles = behaviour_db.get("principles", [])
+
+    # Find the matching principle
+    principle_data = next(
+        (p for p in principles if p.get("id") == principle_id),
+        None,
+    )
+
+    if not principle_data:
+        return "This suggestion is based on behavioural science research to help you build better habits."
+
+    principle_name = principle_data.get("name", principle_id)
+    principle_description = principle_data.get(
+        "description", "This principle helps explain patterns in financial behaviour."
+    )
+
+    return f"**Why this works:** This suggestion is based on the principle of **{principle_name}** — {principle_description}"
+
+
 def load_behaviour_db(db_path: str) -> dict[str, Any]:
     """
     Load the behaviour principles database from a JSON file.

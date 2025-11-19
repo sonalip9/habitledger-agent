@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .behaviour_engine import analyse_behaviour
+from .behaviour_engine import analyse_behaviour, explain_principle
 from .memory import UserMemory
 
 
@@ -97,6 +97,10 @@ def run_once(
 
         response_parts.append(f"🎯 **Detected Principle:** {principle_name}\n")
         response_parts.append(f"💡 **Why:** {reason}\n")
+
+        # Add behavioural explanation
+        explanation = explain_principle(detected_principle_id, behaviour_db)
+        response_parts.append(f"\n{explanation}\n")
 
         if interventions:
             response_parts.append(f"\n✨ **Suggested Action:**\n{interventions[0]}\n")
