@@ -221,3 +221,65 @@ and simple habits that stick.
    review regularly, and adjust as you learn your patterns.
 """
     return plan.strip()
+
+
+def build_overspending_guardrails() -> str:
+    """
+    Build behavioural guardrails to prevent overspending.
+
+    This function provides a set of practical behaviour-change strategies
+    to help users avoid impulsive spending. Focuses on creating friction
+    for unnecessary purchases and building conscious decision-making habits.
+
+    Returns:
+        str: A formatted set of overspending guardrails with the 24-hour pause rule,
+             spending caps, and cash-only strategies.
+
+    Example:
+        >>> guardrails = build_overspending_guardrails()
+        >>> print(guardrails)
+        🛡️ Your Overspending Guardrails
+        ...
+    """
+    plan = """🛡️ **Your Overspending Guardrails**
+
+These are behaviour-focused strategies to help you pause, think, and
+avoid impulsive spending. No judgment — just smart guardrails.
+
+**1. The 24-Hour Pause Rule**
+   - For any non-essential purchase over ₹500, wait 24 hours
+   - Add it to a "wish list" instead of buying immediately
+   - Revisit tomorrow: Do you still want it? Need it?
+   - Most impulse cravings fade within a day
+
+   💡 This creates friction and gives your rational brain time to catch up.
+
+**2. Weekly Spending Cap for High-Risk Categories**
+   - Identify YOUR high-risk spending triggers (e.g., food delivery, online shopping)
+   - Set a specific weekly cap (e.g., "Max ₹1000 on food delivery this week")
+   - Track it daily — awareness alone reduces spending
+   - When you hit the cap, STOP until next week
+
+**3. Cash-Only or Prepaid Wallet Trick**
+   - For categories you overspend on, switch to CASH ONLY for one week
+   - Or load a fixed amount into a prepaid wallet
+   - Once it's gone, it's gone — no refills mid-week
+   - Physical or finite money creates natural limits
+
+   💡 Digital payments remove friction; adding it back helps control impulses.
+
+**4. Delete or Logout from Temptation Apps**
+   - Uninstall shopping/delivery apps from your phone (or at least logout)
+   - If you REALLY need something, you'll make the effort to reinstall
+   - This 30-second delay often kills the impulse
+   - Keep apps you genuinely need; remove ones that trigger mindless spending
+
+**5. Accountability Check-In**
+   - Share your spending goal with someone (friend, partner, or even me!)
+   - Do a quick daily/weekly check-in: "Did I stick to my guardrails?"
+   - External accountability makes a huge difference
+
+💡 **Tip:** Start with ONE guardrail. Master it. Then add another.
+   Behaviour change works best in small steps.
+"""
+    return plan.strip()
