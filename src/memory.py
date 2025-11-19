@@ -261,3 +261,84 @@ class UserMemory:
 
         # Update last check-in timestamp
         self.last_check_in = timestamp
+
+
+def build_memory_summary(memory: UserMemory) -> str:
+    """
+    Build a text-based summary of user memory patterns and progress.
+
+    This function analyzes the user's memory state to provide quick insights
+    about their current habit streaks, struggles, and patterns. It's useful
+    for generating session summaries or providing analytics feedback.
+
+    Args:
+        memory: UserMemory instance containing user's goals, streaks, and history.
+
+    Returns:
+        str: A formatted text summary covering current streaks, struggle counts,
+             and recent struggle patterns.
+
+    Example:
+        >>> memory = UserMemory(user_id="user123")
+        >>> memory.streaks = {"no_food_delivery": {"current": 7, "best": 10}}
+        >>> memory.struggles = [{"description": "Weekend overspending", "count": 3}]
+        >>> summary = build_memory_summary(memory)
+        >>> print(summary)
+        📊 Memory Summary
+        ...
+    """
+    summary_parts = []
+    summary_parts.append("📊 **Memory Summary**\n")
+    summary_parts.append("=" * 50 + "\n")
+
+    # Current streak status
+    if memory.streaks:
+        summary_parts.append("\n🔥 **Current Streaks:**\n")
+        active_streaks = []
+        broken_streaks = []
+
+        for streak_name, streak_data in memory.streaks.items():
+            current = streak_data.get("current", 0)
+            best = streak_data.get("best", 0)
+            streak_label = streak_name.replace("_", " ").title()
+
+            if current > 0:
+                active_streaks.append(f"  • {streak_label}: {current} days")
+            else:
+                broken_streaks.append(f"  • {streak_label}: Reset (best was {best})")
+
+        if active_streaks:
+            for streak in active_streaks:
+                summary_parts.append(f"{streak} ✨\n")
+        if broken_streaks:
+            summary_parts.append("\n  **Rebuilding:**\n")
+            for streak in broken_streaks:
+                summary_parts.append(f"{streak} 💪\n")
+    else:
+        summary_parts.append("\n🔥 **Streaks:** No active streaks yet.\n")
+
+    # Struggles summary
+    total_struggles = len(memory.struggles)
+    if total_struggles > 0:
+        summary_parts.append(f"\n⚠️  **Struggles Recorded:** {total_struggles}\n")
+
+        # Show most recent 3 struggles
+        recent_struggles = sorted(
+            memory.struggles,
+            key=lambda s: s.get("last_noted", ""),
+            reverse=True,
+        )[:3]
+
+        if recent_struggles:
+            summary_parts.append("\n  **Recent patterns:**\n")
+            for struggle in recent_struggles:
+                description = struggle.get("description", "Unknown")
+                count = struggle.get("count", 1)
+                summary_parts.append(f"  • {description} ({count}x)\n")
+    else:
+        summary_parts.append("\n⚠️  **Struggles:** None recorded yet.\n")
+
+    # Closing note
+    summary_parts.append("\n" + "=" * 50 + "\n")
+
+    return "".join(summary_parts)
