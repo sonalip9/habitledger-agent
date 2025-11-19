@@ -165,3 +165,59 @@ def build_sip_habit_plan(
 """
     )
     return plan.strip()
+
+
+def build_budget_habit_plan() -> str:
+    """
+    Build a simple monthly budgeting habit plan.
+
+    This function creates a behaviour-focused budgeting framework using
+    simple rules of thumb and micro-habits. Emphasizes habit formation
+    over precise financial calculations.
+
+    Returns:
+        str: A formatted budget habit plan with the 50/30/20 rule,
+             weekly review habits, and spending reduction strategies.
+
+    Example:
+        >>> plan = build_budget_habit_plan()
+        >>> print(plan)
+        💰 Your Budget Habit Plan
+        ...
+    """
+    plan = """💰 **Your Budget Habit Plan**
+
+Building a budget isn't about perfection — it's about building awareness
+and simple habits that stick.
+
+**1. Use the 50/30/20 Rule of Thumb**
+   - 50% on Needs (rent, groceries, utilities, transport)
+   - 30% on Wants (entertainment, dining out, hobbies)
+   - 20% on Savings & Debt repayment
+
+   Don't obsess over exact percentages — use this as a rough guide
+   to understand where your money goes.
+
+**2. Weekly Budget Review Micro-Habit**
+   - Pick ONE day per week (e.g., Sunday evening)
+   - Spend 10 minutes reviewing last week's expenses
+   - Ask: "Where did I overspend? What surprised me?"
+   - Write down ONE insight or pattern you noticed
+
+   💡 The goal is awareness, not judgment.
+
+**3. Pick ONE Category to Reduce**
+   - Don't try to cut everything at once
+   - Choose ONE spending category you want to consciously reduce
+   - Examples: food delivery, impulse online shopping, weekend outings
+   - Set a specific weekly cap for that category
+
+**4. Make It a Habit, Not a Spreadsheet**
+   - Start with simple tracking (even just notes on your phone)
+   - Focus on building the HABIT of checking, not perfect accounting
+   - Celebrate small wins (e.g., "I stayed under budget 3 days this week!")
+
+💡 **Tip:** Budgets fail when they're too complex. Keep it simple,
+   review regularly, and adjust as you learn your patterns.
+"""
+    return plan.strip()
