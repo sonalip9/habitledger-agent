@@ -129,6 +129,105 @@ def run_once(
     return "".join(response_parts)
 
 
+def generate_session_summary(memory: UserMemory) -> str:
+    """
+    Generate a summary of the user's current session and progress.
+
+    This function creates a comprehensive summary including current streaks,
+    recent struggles, detected behavioural patterns, and an encouraging message
+    to motivate continued progress.
+
+    Args:
+        memory: UserMemory instance containing user's goals, streaks, and history.
+
+    Returns:
+        str: A formatted session summary with streaks, struggles, patterns,
+             and encouragement.
+
+    Example:
+        >>> memory = UserMemory(user_id="user123")
+        >>> memory.streaks = {"no_food_delivery": {"current": 5, "best": 10}}
+        >>> summary = generate_session_summary(memory)
+        >>> print(summary)
+        📊 Session Summary
+        ...
+    """
+    summary_parts = []
+    summary_parts.append("📊 **Session Summary**\n")
+    summary_parts.append("=" * 50 + "\n")
+
+    # Current streaks
+    if memory.streaks:
+        summary_parts.append("\n🔥 **Active Streaks:**\n")
+        for streak_name, streak_data in memory.streaks.items():
+            current = streak_data.get("current", 0)
+            best = streak_data.get("best", 0)
+            streak_label = streak_name.replace("_", " ").title()
+
+            if current > 0:
+                summary_parts.append(
+                    f"  • {streak_label}: {current} days (Best: {best} days) 🎯\n"
+                )
+            else:
+                summary_parts.append(
+                    f"  • {streak_label}: Reset (Best: {best} days) - You can rebuild! 💪\n"
+                )
+    else:
+        summary_parts.append(
+            "\n🔥 **Streaks:** No active streaks yet. Start building one today!\n"
+        )
+
+    # Recent struggles
+    if memory.struggles:
+        summary_parts.append("\n⚠️  **Recent Struggles:**\n")
+        # Show top 3 most frequent struggles
+        sorted_struggles = sorted(
+            memory.struggles,
+            key=lambda s: s.get("count", 0),
+            reverse=True,
+        )[:3]
+
+        for struggle in sorted_struggles:
+            description = struggle.get("description", "Unknown")
+            count = struggle.get("count", 0)
+            summary_parts.append(f"  • {description} ({count}x)\n")
+    else:
+        summary_parts.append("\n⚠️  **Struggles:** None recorded. Great progress!\n")
+
+    # Behavioural patterns
+    if memory.behaviour_patterns:
+        summary_parts.append("\n🔍 **Detected Patterns:**\n")
+        for pattern_name, pattern_data in memory.behaviour_patterns.items():
+            pattern_label = pattern_name.replace("_", " ").title()
+            occurrences = pattern_data.get("occurrences", 0)
+            summary_parts.append(f"  • {pattern_label} ({occurrences}x)\n")
+    else:
+        summary_parts.append("\n🔍 **Patterns:** No recurring patterns detected yet.\n")
+
+    # Encouraging closing message
+    summary_parts.append("\n" + "=" * 50 + "\n")
+    summary_parts.append("\n💬 **Coach's Note:**\n")
+
+    # Personalize based on streaks
+    if memory.streaks and any(s.get("current", 0) > 0 for s in memory.streaks.values()):
+        summary_parts.append(
+            "You're making progress! Every day you maintain a streak,\n"
+            "you're rewiring your habits. Keep it up! 🌟\n"
+        )
+    elif memory.struggles:
+        summary_parts.append(
+            "Remember: setbacks are part of the journey. Each struggle\n"
+            "teaches you something. Focus on small wins! 💪\n"
+        )
+    else:
+        summary_parts.append(
+            "You're just getting started! Building better money habits\n"
+            "takes time, but you've taken the first step. Stay consistent! 🚀\n"
+        )
+
+    return "".join(summary_parts)
+
+
 def main() -> None:
     """
     Run the HabitLedger coach in interactive command-line mode.
