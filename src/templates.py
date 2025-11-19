@@ -101,3 +101,67 @@ Time to look back at your week and plan ahead!
    and set up a strong plan for next week!
 """
     return template.strip()
+
+
+def build_sip_habit_plan(
+    goal_amount: float | None = None, monthly_sip: float | None = None
+) -> str:
+    """
+    Build a personalized SIP (Systematic Investment Plan) habit plan.
+
+    This function creates a structured plan to help users build consistent
+    savings habits through SIPs. It provides actionable steps, behavioural
+    nudges, and timing recommendations.
+
+    Args:
+        goal_amount: Optional target savings goal amount
+        monthly_sip: Optional monthly SIP contribution amount
+
+    Returns:
+        str: A formatted SIP habit plan with setup pattern, starting action,
+             timing recommendations, and behavioural nudges.
+
+    Example:
+        >>> plan = build_sip_habit_plan(goal_amount=100000, monthly_sip=5000)
+        >>> print(plan)
+        🎯 Your SIP Habit Plan
+        ...
+    """
+    intro = "🎯 **Your SIP Habit Plan**\n\n"
+
+    if goal_amount and monthly_sip:
+        intro += (
+            f"Goal: Save ₹{goal_amount:,.0f} | Monthly SIP: ₹{monthly_sip:,.0f}\n\n"
+        )
+    elif monthly_sip:
+        intro += f"Monthly SIP: ₹{monthly_sip:,.0f}\n\n"
+    elif goal_amount:
+        intro += f"Goal: Save ₹{goal_amount:,.0f}\n\n"
+
+    plan = (
+        intro
+        + """**1. Setup Pattern — Fixed Date Every Month**
+   - Pick a specific date (e.g., 5th of every month)
+   - Set up auto-debit so it happens without thinking
+   - Mark it on your calendar as a recurring event
+
+**2. Start Now Action (Do This Today)**
+   - Open your banking/investment app
+   - Set up ONE SIP for the smallest comfortable amount
+   - Even ₹500/month is a great start — consistency matters more than amount
+
+**3. Tie to Salary Day**
+   - Schedule SIP for 2-3 days after your salary credit date
+   - This way, money is "moved away" before you can spend it
+   - Treat it as the FIRST expense, not leftover savings
+
+**4. Behavioural Nudge — "Pay Yourself First"**
+   - Think of your SIP as a non-negotiable bill (like rent or EMI)
+   - You wouldn't skip paying your electricity bill — same logic here
+   - Automate it so decision-making is removed from the equation
+
+💡 **Tip:** Start small, automate everything, and increase gradually.
+   The habit is more important than the amount!
+"""
+    )
+    return plan.strip()
