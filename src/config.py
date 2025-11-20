@@ -84,3 +84,21 @@ def get_model_name() -> str:
     # TODO: Make configurable via environment variable
     # return os.getenv("MODEL_NAME", "gpt-4o-mini")
     return "gpt-4o-mini"
+
+
+def get_adk_model_name() -> str:
+    """
+    Get the model name to be used by the ADK HabitLedger agent.
+
+    Reads from the GOOGLE_ADK_MODEL environment variable if set,
+    otherwise falls back to a sensible default (gemini-2.0-flash-exp).
+
+    Returns:
+        str: The ADK model name to use.
+
+    Example:
+        >>> model = get_adk_model_name()
+        >>> print(model)
+        gemini-2.0-flash-exp
+    """
+    return os.getenv("GOOGLE_ADK_MODEL", "gemini-2.0-flash-exp")

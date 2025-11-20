@@ -6,7 +6,14 @@ with appropriate instructions and behavioural coaching capabilities using
 Google's Agent Development Kit (ADK).
 """
 
+import sys
+from pathlib import Path
+
+# Add src to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
 from google.genai import Client
+from src.config import get_adk_model_name
 
 # Agent instruction text
 INSTRUCTION_TEXT = """You are a behavioural finance coach named HabitLedger.
@@ -59,5 +66,5 @@ def create_root_agent(model_name: str = "gemini-2.0-flash-exp") -> Client:
     return client
 
 
-# Default root agent instance
-root_agent = create_root_agent()
+# Default root agent instance using configured model
+root_agent = create_root_agent(model_name=get_adk_model_name())
