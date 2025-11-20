@@ -426,6 +426,59 @@ It behaves like a personalised **financial habit concierge** that guides, nudges
 
 ---
 
+## 🚀 Running the Agent
+
+HabitLedger can be run in multiple modes:
+
+### 1. ADK Mode (Recommended)
+
+Run the agent with Google ADK (Agent Development Kit) for LLM-powered interactions:
+
+```bash
+# Set up environment
+export GOOGLE_API_KEY="your_api_key_here"
+
+# Run the ADK CLI
+python -m src.habitledger_adk.runner
+```
+
+This mode provides:
+
+- LLM-powered conversational interface
+- Automatic tool calling to the HabitLedger coaching engine
+- Natural language understanding with Gemini models
+
+### 2. Classic Python Mode
+
+Run the deterministic keyword-based coach directly:
+
+```bash
+python -m src.coach
+```
+
+This mode uses:
+
+- Keyword-based principle detection
+- Direct coaching logic without LLM overhead
+- Faster responses for testing and development
+
+### 3. Demo Notebook
+
+Explore interactive examples and scenarios:
+
+```bash
+jupyter notebook notebooks/demo.ipynb
+```
+
+The notebook demonstrates:
+
+- Single interaction examples
+- Multiple scenario testing
+- Memory state inspection
+- Evaluation criteria
+
+---
+
 ## 🧪 Evaluation
 
 HabitLedger can be evaluated on:

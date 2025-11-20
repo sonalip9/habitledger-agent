@@ -7,5 +7,6 @@ agent with custom tools and session management.
 """
 
 from .agent import root_agent, habitledger_coach_tool
+from .runner import run_cli
 
-__all__ = ["root_agent", "habitledger_coach_tool"]
+__all__ = ["root_agent", "habitledger_coach_tool", "run_cli"]
