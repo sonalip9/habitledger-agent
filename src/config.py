@@ -11,6 +11,7 @@ The module follows these principles:
 - Explicit errors: Raises clear exceptions when required config is missing
 """
 
+import logging
 import os
 from pathlib import Path
 
@@ -102,3 +103,28 @@ def get_adk_model_name() -> str:
         gemini-2.0-flash-exp
     """
     return os.getenv("GOOGLE_ADK_MODEL", "gemini-2.0-flash-exp")
+
+
+def setup_logging(level: str = "INFO") -> None:
+    """
+    Configure logging for HabitLedger.
+
+    Sets up logging with a standard format showing timestamp, level, module, and message.
+    Call this at application startup to enable logging throughout the application.
+
+    Args:
+        level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
+               Can also be set via HABITLEDGER_LOG_LEVEL environment variable.
+
+    Example:
+        >>> setup_logging()
+        >>> # Or with custom level
+        >>> setup_logging("DEBUG")
+    """
+    log_level = os.getenv("HABITLEDGER_LOG_LEVEL", level).upper()
+    
+    logging.basicConfig(
+        level=getattr(logging, log_level, logging.INFO),
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
