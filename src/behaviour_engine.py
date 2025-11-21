@@ -9,11 +9,12 @@ The module uses LLM-based analysis as the primary method, with deterministic,
 keyword-based heuristics as a fallback when LLM analysis is unavailable or fails.
 """
 
+import json
 import logging
 from typing import Any
 
-from .memory import UserMemory
 from .llm_client import analyse_behaviour_with_llm
+from .memory import UserMemory
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -125,6 +126,7 @@ def analyse_behaviour(
             - "reason" (str): Brief explanation of why this principle was selected
             - "intervention_suggestions" (list[str]): List of suggested interventions
             - "triggers_matched" (list[str]): List of triggers that matched the input
+            - "source" (str): "adk" or "keyword" indicating classification method
 
     Example:
         >>> from memory import UserMemory
@@ -137,11 +139,11 @@ def analyse_behaviour(
     # Try LLM-based analysis first
     logger.info("Attempting LLM-based behaviour analysis")
     llm_result = analyse_behaviour_with_llm(user_input, user_memory, behaviour_db)
-    
+
     if llm_result:
         logger.info(f"LLM analysis successful: {llm_result['detected_principle_id']}")
         return llm_result
-    
+
     # Fall back to keyword-based analysis
     logger.info("LLM analysis failed or unavailable, using keyword-based fallback")
     return _analyse_behaviour_keyword(user_input, user_memory, behaviour_db)
@@ -199,6 +201,10 @@ def _analyse_behaviour_keyword(
     # Select the principle with highest score
     if not principle_scores:
         # No clear match, return generic response
+        logger.info(
+            "No principle detected",
+            extra={"principle_id": None, "source": "keyword"},
+        )
         return {
             "detected_principle_id": None,
             "reason": "No specific behavioural pattern detected. General guidance provided.",
@@ -208,6 +214,7 @@ def _analyse_behaviour_keyword(
                 "Set one small, specific goal to work on",
             ],
             "triggers_matched": [],
+            "source": "keyword",
         }
 
     # Get the best matching principle
@@ -220,6 +227,10 @@ def _analyse_behaviour_keyword(
     )
 
     if not principle_data:
+        logger.info(
+            "Keyword classification - principle not in DB",
+            extra={"principle_id": best_principle_id, "source": "keyword"},
+        )
         return {
             "detected_principle_id": best_principle_id,
             "reason": f"Matched keywords: {', '.join(matched_triggers)}",
@@ -228,6 +239,7 @@ def _analyse_behaviour_keyword(
                 "Try small, incremental changes",
             ],
             "triggers_matched": matched_triggers,
+            "source": "keyword",
         }
 
     # Extract interventions from the principle
@@ -239,11 +251,17 @@ def _analyse_behaviour_keyword(
         matched_triggers,
     )
 
+    logger.info(
+        "Keyword classification successful",
+        extra={"principle_id": best_principle_id, "source": "keyword"},
+    )
+
     return {
         "detected_principle_id": best_principle_id,
         "reason": reason,
         "intervention_suggestions": interventions[:5],  # Return top 5 interventions
         "triggers_matched": matched_triggers,
+        "source": "keyword",
     }
 
 
@@ -374,7 +392,6 @@ def load_behaviour_db(db_path: str) -> dict[str, Any]:
         >>> print(len(db["principles"]))
         8
     """
-    import json
     from pathlib import Path
 
     file_path = Path(db_path)
