@@ -122,7 +122,6 @@ def setup_logging(level: str = "INFO") -> None:
         >>> setup_logging("DEBUG")
     """
     log_level = os.getenv("HABITLEDGER_LOG_LEVEL", level).upper()
-    
     logging.basicConfig(
         level=getattr(logging, log_level, logging.INFO),
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",

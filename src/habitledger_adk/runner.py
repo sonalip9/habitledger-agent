@@ -76,7 +76,6 @@ def run_cli() -> None:
     """
     # Set up logging
     setup_logging()
-    
     print("=" * 70)
     print("🌟 HabitLedger ADK Agent - Interactive CLI")
     print("=" * 70)
