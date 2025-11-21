@@ -8,12 +8,15 @@ behaviour analysis, and response generation.
 """
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
 from .behaviour_engine import analyse_behaviour, explain_principle
 from .config import setup_logging
 from .memory import UserMemory
+
+logger = logging.getLogger(__name__)
 
 
 def load_behaviour_db(path: str) -> dict[str, Any]:
@@ -44,6 +47,150 @@ def load_behaviour_db(path: str) -> dict[str, Any]:
         return json.load(f)
 
 
+def call_adk_agent(prompt_context: dict[str, Any]) -> str | None:
+    """
+    Call the ADK agent to generate a natural-language coaching response.
+
+    This function sends the user input and context (behaviour analysis, memory summary)
+    to the ADK agent, which can use the behaviour_db_tool to retrieve interventions
+    and generate a personalized coaching response.
+
+    Args:
+        prompt_context: Dictionary containing:
+            - "user_input" (str): The user's original message
+            - "analysis_result" (dict): Behaviour analysis result
+            - "memory_summary" (str): Brief summary of user's memory/context
+
+    Returns:
+        str or None: The ADK agent's response text, or None if the call fails.
+
+    Example:
+        >>> context = {"user_input": "I keep ordering food", "analysis_result": {...}}
+        >>> response = call_adk_agent(context)
+        >>> if response:
+        ...     print(response)
+    """
+    try:
+        from google.genai import Client
+        from google.genai.types import GenerateContentConfig, Part, Content
+
+        from .config import get_adk_model_name, get_api_key
+        from .habitledger_adk.agent import (
+            INSTRUCTION_TEXT,
+            behaviour_db_function_tool,
+            behaviour_db_tool,
+        )
+
+        # Extract context
+        user_input = prompt_context.get("user_input", "")
+        analysis_result = prompt_context.get("analysis_result", {})
+        memory_summary = prompt_context.get("memory_summary", "")
+
+        # Build prompt with context
+        principle_id = analysis_result.get("detected_principle_id")
+        source = analysis_result.get("source", "unknown")
+
+        context_prompt = f"""User message: "{user_input}"
+
+Context:
+- Pre-analyzed principle: {principle_id or "None detected"}
+- Detection source: {source}
+- Memory: {memory_summary}
+
+Generate a supportive, actionable coaching response. Use the behaviour_db_tool if you need more details about the detected principle or want to explore alternative principles."""
+
+        # Initialize client
+        api_key = get_api_key()
+        client = Client(api_key=api_key)
+        model_name = get_adk_model_name()
+
+        config = GenerateContentConfig(
+            system_instruction=INSTRUCTION_TEXT,
+            tools=[behaviour_db_function_tool],
+            temperature=0.7,
+        )
+
+        # First call - let agent decide to use tool
+        response = client.models.generate_content(
+            model=model_name,
+            contents=context_prompt,
+            config=config,
+        )
+
+        # Check if agent called the tool
+        tool_used = False
+        final_response_parts = []
+
+        if response.candidates and response.candidates[0].content:
+            for part in response.candidates[0].content.parts:
+                if hasattr(part, "function_call") and part.function_call:
+                    tool_used = True
+                    # Execute the tool
+                    func_name = part.function_call.name
+                    args = part.function_call.args if part.function_call.args else {}
+
+                    if func_name == "behaviour_db_tool":
+                        tool_input = (
+                            args.get("user_input", user_input)
+                            if hasattr(args, "get")
+                            else user_input
+                        )
+                        tool_result = behaviour_db_tool(tool_input)
+
+                        logger.info(
+                            "ADK agent called behaviour_db_tool",
+                            extra={"tool_result": tool_result},
+                        )
+
+                        # Send tool result back to agent for final response
+                        tool_response_content = Content(
+                            parts=[
+                                Part.from_function_response(
+                                    name=func_name,
+                                    response=tool_result,
+                                )
+                            ]
+                        )
+
+                        # Continue conversation with tool result
+                        final_response = client.models.generate_content(
+                            model=model_name,
+                            contents=[
+                                context_prompt,
+                                response.candidates[0].content,
+                                tool_response_content,
+                            ],
+                            config=config,
+                        )
+
+                        if (
+                            final_response.candidates
+                            and final_response.candidates[0].content
+                        ):
+                            for final_part in final_response.candidates[
+                                0
+                            ].content.parts:
+                                if hasattr(final_part, "text") and final_part.text:
+                                    final_response_parts.append(final_part.text)
+                elif hasattr(part, "text") and part.text:
+                    final_response_parts.append(part.text)
+
+        if final_response_parts:
+            response_text = "".join(final_response_parts)
+            logger.info(
+                "ADK agent response generated",
+                extra={"tool_used": tool_used, "response_length": len(response_text)},
+            )
+            return response_text
+
+        logger.warning("ADK agent returned no response")
+        return None
+
+    except Exception as e:  # noqa: BLE001
+        logger.warning("ADK agent call failed: %s", str(e), exc_info=True)
+        return None
+
+
 def run_once(
     user_input: str,
     memory: UserMemory,
@@ -54,8 +201,9 @@ def run_once(
 
     This function orchestrates the core agent loop for one interaction:
     1. Analyzes user input to detect relevant behavioural principles
-    2. Generates a personalized coaching response with interventions
-    3. Updates user memory with the interaction outcome
+    2. Attempts to generate response via ADK agent (with tool calling support)
+    3. Falls back to template-based response if ADK fails
+    4. Updates user memory with the interaction outcome
 
     Args:
         user_input: The user's message or description of their situation.
@@ -63,8 +211,8 @@ def run_once(
         behaviour_db: Dictionary containing behavioural principles.
 
     Returns:
-        str: A coaching response summarizing the detected principle and suggesting
-             an intervention, or general guidance if no principle was detected.
+        str: A coaching response (ADK-generated or template-based) with principle
+             detection and interventions, or general guidance if no principle detected.
 
     Example:
         >>> memory = UserMemory(user_id="user123")
@@ -79,6 +227,34 @@ def run_once(
     detected_principle_id = analysis.get("detected_principle_id")
     reason = analysis.get("reason", "")
     interventions = analysis.get("intervention_suggestions", [])
+
+    # Step 2: Build memory summary for context
+    memory_summary = f"Goals: {len(memory.goals)}, Streaks: {len(memory.streaks)}, Recent struggles: {len(memory.struggles)}"
+
+    # Step 3: Try ADK agent for response generation
+    prompt_context = {
+        "user_input": user_input,
+        "analysis_result": analysis,
+        "memory_summary": memory_summary,
+    }
+
+    adk_response = call_adk_agent(prompt_context)
+
+    if adk_response:
+        logger.info("Using ADK agent response")
+        # Update memory
+        if detected_principle_id and interventions:
+            memory.record_interaction(
+                {
+                    "type": "intervention",
+                    "principle_id": detected_principle_id,
+                    "description": interventions[0],
+                }
+            )
+        return adk_response
+
+    # Step 4: Fallback to template-based response
+    logger.info("Falling back to template-based response")
 
     # Step 2: Build response
     response_parts = []
