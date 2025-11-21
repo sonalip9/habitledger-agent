@@ -15,16 +15,17 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from google.genai import Client
 from google.genai.types import (
-    GenerateContentConfig,
-    Tool,
     FunctionDeclaration,
+    GenerateContentConfig,
     Schema,
+    Tool,
     Type,
 )
 
 from src.config import get_adk_model_name, get_api_key, setup_logging
 from src.memory import UserMemory
-from .agent import habitledger_coach_tool, INSTRUCTION_TEXT
+
+from .agent import INSTRUCTION_TEXT, habitledger_coach_tool
 
 logger = logging.getLogger(__name__)
 

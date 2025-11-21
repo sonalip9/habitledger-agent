@@ -70,6 +70,10 @@ def call_adk_agent(prompt_context: dict[str, Any]) -> str | None:
         >>> if response:
         ...     print(response)
     """
+    import time
+
+    start_time = time.time()
+
     try:
         from google.genai import Client
         from google.genai.types import GenerateContentConfig, Part, Content
@@ -138,8 +142,13 @@ Generate a supportive, actionable coaching response. Use the behaviour_db_tool i
                         tool_result = behaviour_db_tool(tool_input)
 
                         logger.info(
-                            "ADK agent called behaviour_db_tool",
-                            extra={"tool_result": tool_result},
+                            "ADK agent called tool",
+                            extra={
+                                "event": "tool_call",
+                                "tool_name": func_name,
+                                "principle_id": tool_result.get("detected_principle_id"),
+                                "source": "adk",
+                            },
                         )
 
                         # Send tool result back to agent for final response
@@ -177,9 +186,23 @@ Generate a supportive, actionable coaching response. Use the behaviour_db_tool i
 
         if final_response_parts:
             response_text = "".join(final_response_parts)
+            duration_ms = int((time.time() - start_time) * 1000)
+            user_input_truncated = (
+                prompt_context.get("user_input", "")[:200]
+                if len(prompt_context.get("user_input", "")) > 200
+                else prompt_context.get("user_input", "")
+            )
+            
             logger.info(
                 "ADK agent response generated",
-                extra={"tool_used": tool_used, "response_length": len(response_text)},
+                extra={
+                    "event": "response_generation",
+                    "source": "adk",
+                    "tool_used": tool_used,
+                    "response_length": len(response_text),
+                    "user_input": user_input_truncated,
+                    "duration_ms": duration_ms,
+                },
             )
             return response_text
 
@@ -187,7 +210,18 @@ Generate a supportive, actionable coaching response. Use the behaviour_db_tool i
         return None
 
     except Exception as e:  # noqa: BLE001
-        logger.warning("ADK agent call failed: %s", str(e), exc_info=True)
+        duration_ms = int((time.time() - start_time) * 1000)
+        logger.warning(
+            "ADK agent call failed: %s",
+            str(e),
+            extra={
+                "event": "response_generation",
+                "source": "adk",
+                "error": str(e),
+                "duration_ms": duration_ms,
+            },
+            exc_info=True,
+        )
         return None
 
 
@@ -241,7 +275,14 @@ def run_once(
     adk_response = call_adk_agent(prompt_context)
 
     if adk_response:
-        logger.info("Using ADK agent response")
+        logger.info(
+            "Using ADK agent response",
+            extra={
+                "event": "response_generation",
+                "source": "adk",
+                "principle_id": detected_principle_id,
+            },
+        )
         # Update memory
         if detected_principle_id and interventions:
             memory.record_interaction(
@@ -254,7 +295,14 @@ def run_once(
         return adk_response
 
     # Step 4: Fallback to template-based response
-    logger.info("Falling back to template-based response")
+    logger.info(
+        "Falling back to template-based response",
+        extra={
+            "event": "response_generation",
+            "source": "template",
+            "principle_id": detected_principle_id,
+        },
+    )
 
     # Step 2: Build response
     response_parts = []

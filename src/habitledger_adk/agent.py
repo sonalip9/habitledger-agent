@@ -82,7 +82,9 @@ def _ensure_initialized() -> tuple[UserMemory, dict[str, Any]]:
     return _user_memory, _behaviour_db
 
 
-def behaviour_db_tool(user_input: str, session_meta: dict[str, Any] | None = None) -> dict[str, Any]:
+def behaviour_db_tool(
+    user_input: str, session_meta: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """
     Analyze user financial habit input and detect relevant behavioural principle.
 
@@ -106,36 +108,59 @@ def behaviour_db_tool(user_input: str, session_meta: dict[str, Any] | None = Non
         >>> print(result["detected_principle_id"])
         friction_increase
     """
+    import time
+
+    start_time = time.time()
+    user_input_truncated = user_input[:200] if len(user_input) > 200 else user_input
+
     try:
         memory, behaviour_db = _ensure_initialized()
-        
+
         # Run behaviour analysis (will try ADK first, fall back to keyword)
         analysis_result = analyse_behaviour(user_input, memory, behaviour_db)
-        
+
         principle_id = analysis_result.get("detected_principle_id")
         interventions = analysis_result.get("intervention_suggestions", [])
         reason = analysis_result.get("reason", "")
         source = analysis_result.get("source", "unknown")
-        
+
         # Build structured response
-        explanation = f"Detected principle: {principle_id or 'None'}. {reason} (Source: {source})"
-        
+        explanation = (
+            f"Detected principle: {principle_id or 'None'}. {reason} (Source: {source})"
+        )
+
+        duration_ms = int((time.time() - start_time) * 1000)
+
         logger.info(
-            "behaviour_db_tool called",
+            "behaviour_db_tool executed",
             extra={
+                "event": "tool_call",
+                "tool_name": "behaviour_db_tool",
                 "principle_id": principle_id,
                 "source": source,
-                "session_meta": session_meta,
+                "user_input": user_input_truncated,
+                "duration_ms": duration_ms,
             },
         )
-        
+
         return {
             "detected_principle_id": principle_id,
             "interventions": interventions,
             "explanation": explanation,
         }
     except Exception as e:  # noqa: BLE001
-        logger.error("behaviour_db_tool failed: %s", str(e), exc_info=True)
+        duration_ms = int((time.time() - start_time) * 1000)
+        logger.error(
+            "behaviour_db_tool failed: %s",
+            str(e),
+            extra={
+                "event": "tool_call",
+                "tool_name": "behaviour_db_tool",
+                "error": str(e),
+                "duration_ms": duration_ms,
+            },
+            exc_info=True,
+        )
         return {
             "detected_principle_id": None,
             "interventions": [],
@@ -204,7 +229,7 @@ def create_behaviour_db_function_tool() -> Tool:
         },
         required=["user_input"],
     )
-    
+
     function_declaration = FunctionDeclaration(
         name="behaviour_db_tool",
         description=(
@@ -216,9 +241,9 @@ def create_behaviour_db_function_tool() -> Tool:
         ),
         parameters=parameters_schema,
     )
-    
+
     logger.info("Created behaviour_db_tool FunctionDeclaration")
-    
+
     return Tool(function_declarations=[function_declaration])
 
 
