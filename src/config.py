@@ -122,8 +122,15 @@ def setup_logging(level: str = "INFO") -> None:
         >>> setup_logging("DEBUG")
     """
     log_level = os.getenv("HABITLEDGER_LOG_LEVEL", level).upper()
+    
+    valid_levels = {"CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"}
+    if log_level not in valid_levels:
+        raise ValueError(
+            f"Invalid log level '{log_level}'. Valid levels are: {', '.join(sorted(valid_levels))}."
+        )
+    
     logging.basicConfig(
-        level=getattr(logging, log_level, logging.INFO),
+        level=getattr(logging, log_level),
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )

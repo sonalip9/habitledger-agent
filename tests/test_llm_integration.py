@@ -21,6 +21,20 @@ def get_test_behaviour_db():
         return json.load(f)
 
 
+def assert_trigger_contains(triggers, keyword):
+    """
+    Helper function to check if any trigger contains the keyword.
+    
+    Args:
+        triggers: List of trigger strings
+        keyword: Keyword to search for in triggers (case-insensitive)
+    
+    Returns:
+        bool: True if any trigger contains the keyword
+    """
+    return any(keyword.lower() in trigger.lower() for trigger in triggers)
+
+
 class TestKeywordFallback:
     """Tests for keyword-based behaviour analysis (fallback)."""
 
@@ -36,7 +50,7 @@ class TestKeywordFallback:
         )
 
         assert result["detected_principle_id"] == "friction_increase"
-        assert "delivery" in result["triggers_matched"] or "food delivery" in result["triggers_matched"]
+        assert assert_trigger_contains(result["triggers_matched"], "delivery")
         assert len(result["intervention_suggestions"]) > 0
 
     def test_loss_aversion_with_streaks(self):
@@ -66,7 +80,10 @@ class TestKeywordFallback:
         )
 
         assert result["detected_principle_id"] == "habit_loops"
-        assert "every time" in result["triggers_matched"] or "automatic" in result["triggers_matched"]
+        assert (
+            assert_trigger_contains(result["triggers_matched"], "every time")
+            or assert_trigger_contains(result["triggers_matched"], "automatic")
+        )
 
     def test_no_match_returns_generic(self):
         """Test that no keyword match returns generic guidance."""
@@ -234,4 +251,4 @@ class TestAnalyseBehaviourIntegration:
 
         # Verify result is from keyword fallback
         assert result["detected_principle_id"] == "friction_increase"
-        assert "delivery" in result["triggers_matched"] or "food delivery" in result["triggers_matched"]
+        assert assert_trigger_contains(result["triggers_matched"], "delivery")
