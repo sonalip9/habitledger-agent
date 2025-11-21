@@ -5,13 +5,18 @@ This module contains behaviour analysis and intervention selection logic for Hab
 It analyzes user input to identify relevant behavioural science principles and suggests
 appropriate interventions based on the detected patterns.
 
-The module uses deterministic, keyword-based heuristics to map user input to principles
-from the behaviour knowledge base, avoiding heavy LLM dependencies for core logic.
+The module uses LLM-based analysis as the primary method, with deterministic,
+keyword-based heuristics as a fallback when LLM analysis is unavailable or fails.
 """
 
+import logging
 from typing import Any
 
 from .memory import UserMemory
+from .llm_client import analyse_behaviour_with_llm
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 # Define keyword mappings for each principle
 KEYWORD_MAPPINGS = {
@@ -105,10 +110,9 @@ def analyse_behaviour(
     """
     Analyze user input to detect relevant behavioural principles and suggest interventions.
 
-    This function uses keyword-based heuristics to match user input against behavioural
-    principles from the knowledge base. It considers the user's input text and their
-    memory (goals, streaks, struggles) to select the most relevant principle and
-    corresponding intervention strategies.
+    This function first attempts to use LLM-based analysis for more nuanced understanding.
+    If LLM analysis fails or is unavailable, it falls back to keyword-based heuristics
+    to match user input against behavioural principles from the knowledge base.
 
     Args:
         user_input: The user's message or description of their behaviour/struggle.
@@ -129,6 +133,38 @@ def analyse_behaviour(
         >>> result = analyse_behaviour("I keep ordering food delivery", memory, behaviour_db)
         >>> print(result["detected_principle_id"])
         friction_increase
+    """
+    # Try LLM-based analysis first
+    logger.info("Attempting LLM-based behaviour analysis")
+    llm_result = analyse_behaviour_with_llm(user_input, user_memory, behaviour_db)
+    
+    if llm_result:
+        logger.info(f"LLM analysis successful: {llm_result['detected_principle_id']}")
+        return llm_result
+    
+    # Fall back to keyword-based analysis
+    logger.info("LLM analysis failed or unavailable, using keyword-based fallback")
+    return _analyse_behaviour_keyword(user_input, user_memory, behaviour_db)
+
+
+def _analyse_behaviour_keyword(
+    user_input: str,
+    user_memory: UserMemory,
+    behaviour_db: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Analyze user input using keyword-based heuristics (fallback method).
+
+    This is the original keyword-based analysis logic, now used as a fallback
+    when LLM analysis is unavailable or fails.
+
+    Args:
+        user_input: The user's message or description of their behaviour/struggle.
+        user_memory: UserMemory instance containing user's goals, streaks, and history.
+        behaviour_db: Dictionary containing behavioural principles (from behaviour_principles.json).
+
+    Returns:
+        dict: Analysis result with the same structure as analyse_behaviour.
     """
     user_input_lower = user_input.lower()
     principles = behaviour_db.get("principles", [])

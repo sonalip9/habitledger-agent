@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from .behaviour_engine import analyse_behaviour, explain_principle
+from .config import setup_logging
 from .memory import UserMemory
 
 
@@ -257,6 +258,9 @@ def main() -> None:
         > quit
         Goodbye!
     """
+    # Set up logging
+    setup_logging()
+    
     print("=" * 60)
     print("🌟 Welcome to HabitLedger - Your Behavioural Money Coach")
     print("=" * 60)

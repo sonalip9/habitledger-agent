@@ -116,10 +116,21 @@ HabitLedger follows a modular architecture where each component has a clear, sin
 **2. `behaviour_engine.py` – The Intelligence Layer**
 
 - Analyzes user messages to detect patterns, biases, and emotional triggers
+- Uses LLM-based analysis (via Google ADK) as the primary method for nuanced understanding
+- Falls back to keyword-based heuristics when LLM is unavailable or fails
 - Queries the behaviour knowledge base for relevant principles
 - Matches user situations to appropriate behavioural concepts
 - Generates tailored intervention strategies based on context
 - Returns structured recommendations with rationale
+- Logs all tool decisions and reasoning for transparency
+
+**2a. `llm_client.py` – LLM Integration**
+
+- Provides LLM-based behaviour analysis using Google's Gemini models
+- Creates structured tool calls for principle detection
+- Includes memory context in analysis prompts
+- Logs LLM decisions, reasoning, and recommended interventions
+- Validates LLM responses against the behaviour knowledge base
 
 **3. `memory.py` – The State Manager**
 
@@ -276,6 +287,9 @@ This continuous, stateful operation distinguishes HabitLedger as a true **agent*
 - Detects underlying patterns (for example, “end-of-month overspending”)  
 - Links user behaviour to behavioural science concepts  
 - Suggests targeted interventions aligned with the detected bias
+- Uses LLM-powered analysis for nuanced understanding of user situations
+- Falls back to keyword-based analysis for reliability
+- Logs all analysis decisions and reasoning for transparency
 
 ### 3. Memory & Tracking
 
@@ -352,10 +366,19 @@ Planned structure (you can adjust as needed):
    Create a `.env` file in the project root:
 
    ```text
-   OPENAI_API_KEY=your_api_key_here
+   # Required: Google API key for LLM-based analysis
+   GOOGLE_API_KEY=your_api_key_here
+   
+   # Optional: Set the model to use (default: gemini-2.0-flash-exp)
+   GOOGLE_ADK_MODEL=gemini-2.0-flash-exp
+   
+   # Optional: Set logging level (default: INFO)
+   HABITLEDGER_LOG_LEVEL=INFO
    ```
 
-   Or adapt to the LLM provider you use.
+   The agent will use LLM-based analysis when `GOOGLE_API_KEY` is set, 
+   and automatically fall back to keyword-based analysis if the key is missing 
+   or LLM calls fail.
 
 ---
 
