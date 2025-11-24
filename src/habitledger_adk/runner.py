@@ -20,7 +20,7 @@ from google.genai.types import (
     Type,
 )
 
-from src.config import get_adk_model_name, get_api_key
+from src.config import get_adk_model_name, get_api_key, setup_logging
 from .agent import habitledger_coach_tool, INSTRUCTION_TEXT
 
 
@@ -74,6 +74,8 @@ def run_cli() -> None:
         Run from command line:
         $ python -m src.habitledger_adk.runner
     """
+    # Set up logging
+    setup_logging()
     print("=" * 70)
     print("🌟 HabitLedger ADK Agent - Interactive CLI")
     print("=" * 70)
