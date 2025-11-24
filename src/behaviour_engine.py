@@ -127,6 +127,7 @@ def analyse_behaviour(
             - "intervention_suggestions" (list[str]): List of suggested interventions
             - "triggers_matched" (list[str]): List of triggers that matched the input
             - "source" (str): "adk" or "keyword" indicating classification method
+            - "confidence" (float): Confidence score (0.0-1.0) for the detection
 
     Example:
         >>> from memory import UserMemory
@@ -141,12 +142,19 @@ def analyse_behaviour(
     llm_result = analyse_behaviour_with_llm(user_input, user_memory, behaviour_db)
 
     if llm_result:
-        logger.info(f"LLM analysis successful: {llm_result['detected_principle_id']}")
+        logger.info(
+            "LLM analysis successful: %s",
+            llm_result["detected_principle_id"],
+        )
+        # Apply adaptive weighting based on historical effectiveness
+        llm_result = _apply_adaptive_weighting(llm_result, user_memory)
         return llm_result
 
     # Fall back to keyword-based analysis
     logger.info("LLM analysis failed or unavailable, using keyword-based fallback")
-    return _analyse_behaviour_keyword(user_input, user_memory, behaviour_db)
+    keyword_result = _analyse_behaviour_keyword(user_input, user_memory, behaviour_db)
+    # Apply adaptive weighting to keyword result as well
+    return _apply_adaptive_weighting(keyword_result, user_memory)
 
 
 def _analyse_behaviour_keyword(
@@ -215,11 +223,27 @@ def _analyse_behaviour_keyword(
             ],
             "triggers_matched": [],
             "source": "keyword",
+            "confidence": 0.3,  # Low confidence for generic response
         }
 
     # Get the best matching principle
     best_principle_id = max(principle_scores, key=principle_scores.get)  # type: ignore
     matched_triggers = matched_keywords.get(best_principle_id, [])
+
+    # Calculate confidence score
+    total_keywords_for_principle = len(KEYWORD_MAPPINGS.get(best_principle_id, []))
+    matched_count = len(matched_triggers)
+    memory_bonus = 0
+    if best_principle_id == "loss_aversion" and user_memory.streaks:
+        memory_bonus += 1
+    if best_principle_id == "commitment_devices" and len(user_memory.struggles) >= 2:
+        memory_bonus += 1
+
+    confidence = _calculate_confidence_score(
+        matched_count,
+        total_keywords_for_principle,
+        memory_bonus,
+    )
 
     # Find the full principle data
     principle_data = next(
@@ -231,6 +255,13 @@ def _analyse_behaviour_keyword(
             "Keyword classification - principle not in DB",
             extra={"principle_id": best_principle_id, "source": "keyword"},
         )
+        # Calculate basic confidence
+        total_keywords_for_principle = len(KEYWORD_MAPPINGS.get(best_principle_id, []))
+        matched_count = len(matched_triggers)
+        confidence = _calculate_confidence_score(
+            matched_count, total_keywords_for_principle, 0
+        )
+
         return {
             "detected_principle_id": best_principle_id,
             "reason": f"Matched keywords: {', '.join(matched_triggers)}",
@@ -240,6 +271,7 @@ def _analyse_behaviour_keyword(
             ],
             "triggers_matched": matched_triggers,
             "source": "keyword",
+            "confidence": confidence,
         }
 
     # Extract interventions from the principle
@@ -253,7 +285,11 @@ def _analyse_behaviour_keyword(
 
     logger.info(
         "Keyword classification successful",
-        extra={"principle_id": best_principle_id, "source": "keyword"},
+        extra={
+            "principle_id": best_principle_id,
+            "source": "keyword",
+            "confidence": confidence,
+        },
     )
 
     return {
@@ -262,7 +298,99 @@ def _analyse_behaviour_keyword(
         "intervention_suggestions": interventions[:5],  # Return top 5 interventions
         "triggers_matched": matched_triggers,
         "source": "keyword",
+        "confidence": confidence,
     }
+
+
+def _apply_adaptive_weighting(
+    result: dict[str, Any],
+    user_memory: UserMemory,
+) -> dict[str, Any]:
+    """
+    Apply adaptive weighting based on historical intervention effectiveness.
+
+    This function adjusts confidence scores based on how well each principle
+    has worked for this user in the past. Principles with higher success rates
+    get boosted confidence when detected.
+
+    Args:
+        result: Initial analysis result with detected principle.
+        user_memory: UserMemory instance with intervention feedback.
+
+    Returns:
+        dict: Updated result with adjusted confidence score.
+    """
+    principle_id = result.get("detected_principle_id")
+    base_confidence = result.get("confidence", 0.7)  # Default if not set
+
+    if not principle_id or principle_id not in user_memory.intervention_feedback:
+        # No historical data, return original confidence
+        result["confidence"] = base_confidence
+        return result
+
+    # Get historical success rate for this principle
+    feedback = user_memory.intervention_feedback[principle_id]
+    success_rate = feedback.get("success_rate", 0.5)
+    total_uses = feedback.get("total", 0)
+
+    # Only adjust if we have enough data (at least 2 uses)
+    if total_uses < 2:
+        result["confidence"] = base_confidence
+        return result
+
+    # Adjust confidence based on success rate
+    # Success rate ranges from 0.0 to 1.0
+    # We'll adjust confidence by ±20% based on success rate
+    adjustment = (success_rate - 0.5) * 0.4  # Range: -0.2 to +0.2
+    adjusted_confidence = min(1.0, max(0.1, base_confidence + adjustment))
+
+    result["confidence"] = round(adjusted_confidence, 2)
+    result["adjusted_by_history"] = True
+
+    logger.info(
+        "Applied adaptive weighting: %s (%.2f -> %.2f based on %.1f%% success)",
+        principle_id,
+        base_confidence,
+        adjusted_confidence,
+        success_rate * 100,
+    )
+
+    return result
+
+
+def _calculate_confidence_score(
+    matched_keywords_count: int,
+    total_keywords: int,
+    memory_context_bonus: int = 0,
+) -> float:
+    """
+    Calculate confidence score for keyword-based detection.
+
+    Args:
+        matched_keywords_count: Number of keywords matched.
+        total_keywords: Total keywords available for the principle.
+        memory_context_bonus: Bonus points from memory context (0-2).
+
+    Returns:
+        float: Confidence score between 0.0 and 1.0.
+    """
+    # Base confidence from keyword matching
+    if total_keywords == 0:
+        keyword_confidence = 0.0
+    else:
+        keyword_confidence = min(matched_keywords_count / total_keywords, 1.0)
+
+    # Apply memory context bonus (max +0.2)
+    memory_bonus = min(memory_context_bonus * 0.1, 0.2)
+
+    # Combine and cap at 1.0
+    confidence = min(keyword_confidence * 0.8 + memory_bonus, 1.0)
+
+    # Keyword-based detection is inherently less confident than LLM
+    # So we cap it at 0.75 for keyword matches
+    confidence = min(confidence, 0.75)
+
+    return round(confidence, 2)
 
 
 def _build_reason(
