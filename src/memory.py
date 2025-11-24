@@ -14,6 +14,79 @@ from pathlib import Path
 from typing import Any, Optional
 
 
+class UserProfile:
+    """
+    Tracks user personality and preferences for adaptive response generation.
+
+    This class learns about the user's motivation style, risk tolerance, and
+    engagement patterns to enable personalized coaching responses.
+
+    Attributes:
+        motivation_style (str): User's primary motivation (e.g., "achievement", "fear_avoidance", "social").
+        risk_tolerance (str): User's comfort with challenges ("low", "medium", "high").
+        engagement_level (str): Current engagement pattern ("high", "medium", "low").
+        preferred_tone (str): Communication preference ("direct", "supportive", "educational").
+        learning_speed (str): How quickly user adopts suggestions ("fast", "moderate", "slow").
+    """
+
+    def __init__(
+        self,
+        motivation_style: str = "unknown",
+        risk_tolerance: str = "medium",
+        engagement_level: str = "medium",
+        preferred_tone: str = "supportive",
+        learning_speed: str = "moderate",
+    ):
+        self.motivation_style = motivation_style
+        self.risk_tolerance = risk_tolerance
+        self.engagement_level = engagement_level
+        self.preferred_tone = preferred_tone
+        self.learning_speed = learning_speed
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize UserProfile to dictionary."""
+        return {
+            "motivation_style": self.motivation_style,
+            "risk_tolerance": self.risk_tolerance,
+            "engagement_level": self.engagement_level,
+            "preferred_tone": self.preferred_tone,
+            "learning_speed": self.learning_speed,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "UserProfile":
+        """Deserialize UserProfile from dictionary."""
+        return cls(
+            motivation_style=data.get("motivation_style", "unknown"),
+            risk_tolerance=data.get("risk_tolerance", "medium"),
+            engagement_level=data.get("engagement_level", "medium"),
+            preferred_tone=data.get("preferred_tone", "supportive"),
+            learning_speed=data.get("learning_speed", "moderate"),
+        )
+
+    def update_from_interaction(self, outcome: dict[str, Any]) -> None:
+        """
+        Update profile based on interaction outcomes.
+
+        Args:
+            outcome: Dictionary containing interaction feedback like success rate,
+                    response_quality, engagement_indicators.
+        """
+        # Update engagement level based on interaction frequency
+        if outcome.get("engaged", False):
+            if self.engagement_level == "low":
+                self.engagement_level = "medium"
+            elif self.engagement_level == "medium":
+                self.engagement_level = "high"
+
+        # Update learning speed based on intervention success
+        if outcome.get("intervention_successful", False):
+            if self.learning_speed == "slow":
+                self.learning_speed = "moderate"
+            elif self.learning_speed == "moderate":
+                self.learning_speed = "fast"
+
+
 class UserMemory:
     """
     Manages persistent memory state for a single user.
@@ -32,6 +105,9 @@ class UserMemory:
         interventions (list[dict]): History of suggested interventions.
         last_check_in (str): ISO format timestamp of last interaction.
         behaviour_patterns (dict): Detected patterns (e.g., end_of_month_overspending).
+        conversation_history (list[dict]): Multi-turn conversation log with role, content, timestamp.
+        intervention_feedback (dict): Tracks effectiveness of each principle (success/failure rates).
+        user_profile (UserProfile): Personalization settings for adaptive responses.
 
     Example:
         >>> memory = UserMemory(user_id="user123")
@@ -49,6 +125,9 @@ class UserMemory:
         interventions: Optional[list[dict]] = None,
         last_check_in: Optional[str] = None,
         behaviour_patterns: Optional[dict] = None,
+        conversation_history: Optional[list[dict]] = None,
+        intervention_feedback: Optional[dict[str, dict]] = None,
+        user_profile: Optional[UserProfile] = None,
     ):
         """
         Initialize UserMemory with sensible defaults.
@@ -61,6 +140,9 @@ class UserMemory:
             interventions: History of interventions (default: empty list).
             last_check_in: ISO timestamp of last check-in (default: current time).
             behaviour_patterns: Detected patterns (default: empty dict).
+            conversation_history: Multi-turn conversation log (default: empty list).
+            intervention_feedback: Effectiveness tracking per principle (default: empty dict).
+            user_profile: Personalization settings (default: new UserProfile instance).
         """
         self.user_id = user_id
         self.goals = goals if goals is not None else []
@@ -71,6 +153,13 @@ class UserMemory:
         self.behaviour_patterns = (
             behaviour_patterns if behaviour_patterns is not None else {}
         )
+        self.conversation_history = (
+            conversation_history if conversation_history is not None else []
+        )
+        self.intervention_feedback = (
+            intervention_feedback if intervention_feedback is not None else {}
+        )
+        self.user_profile = user_profile if user_profile is not None else UserProfile()
 
     def to_dict(self) -> dict[str, Any]:
         """
@@ -93,6 +182,9 @@ class UserMemory:
             "interventions": self.interventions,
             "last_check_in": self.last_check_in,
             "behaviour_patterns": self.behaviour_patterns,
+            "conversation_history": self.conversation_history,
+            "intervention_feedback": self.intervention_feedback,
+            "user_profile": self.user_profile.to_dict(),
         }
 
     @classmethod
@@ -112,6 +204,11 @@ class UserMemory:
             >>> print(memory.user_id)
             user123
         """
+        profile_data = data.get("user_profile", {})
+        user_profile = (
+            UserProfile.from_dict(profile_data) if profile_data else UserProfile()
+        )
+
         return cls(
             user_id=data.get("user_id", "default_user"),
             goals=data.get("goals", []),
@@ -120,6 +217,9 @@ class UserMemory:
             interventions=data.get("interventions", []),
             last_check_in=data.get("last_check_in"),
             behaviour_patterns=data.get("behaviour_patterns", {}),
+            conversation_history=data.get("conversation_history", []),
+            intervention_feedback=data.get("intervention_feedback", {}),
+            user_profile=user_profile,
         )
 
     @classmethod
@@ -262,8 +362,143 @@ class UserMemory:
         # Update last check-in timestamp
         self.last_check_in = timestamp
 
+    def add_conversation_turn(
+        self,
+        role: str,
+        content: str,
+        metadata: Optional[dict[str, Any]] = None,
+    ) -> None:
+        """
+        Add a conversation turn to the history.
 
-def build_memory_summary(memory: UserMemory) -> str:
+        Args:
+            role: The role of the speaker ("user", "assistant", "system").
+            content: The message content.
+            metadata: Optional metadata like principle_id, confidence, etc.
+
+        Example:
+            >>> memory = UserMemory(user_id="user123")
+            >>> memory.add_conversation_turn("user", "I keep ordering food delivery")
+            >>> memory.add_conversation_turn("assistant", "Let's work on that...", {"principle_id": "friction_increase"})
+        """
+        timestamp = datetime.now().isoformat()
+        turn: dict[str, Any] = {
+            "role": role,
+            "content": content,
+            "timestamp": timestamp,
+        }
+
+        if metadata:
+            turn["metadata"] = metadata
+
+        self.conversation_history.append(turn)
+
+        # Implement conversation windowing - keep last 50 turns
+        if len(self.conversation_history) > 50:
+            self.conversation_history = self.conversation_history[-50:]
+
+    def build_conversation_context(self, num_turns: int = 10) -> str:
+        """
+        Build a formatted context string from recent conversation history.
+
+        Args:
+            num_turns: Number of recent turns to include (default: 10).
+
+        Returns:
+            str: Formatted conversation context for LLM prompts.
+
+        Example:
+            >>> memory = UserMemory(user_id="user123")
+            >>> memory.add_conversation_turn("user", "I keep spending too much")
+            >>> context = memory.build_conversation_context(num_turns=5)
+        """
+        if not self.conversation_history:
+            return "No previous conversation."
+
+        recent_turns = self.conversation_history[-num_turns:]
+        context_parts = ["Recent conversation:"]
+
+        for turn in recent_turns:
+            role = turn.get("role", "unknown").capitalize()
+            content = turn.get("content", "")[:200]  # Truncate long messages
+            context_parts.append(f"{role}: {content}")
+
+        return "\n".join(context_parts)
+
+    def record_intervention_feedback(
+        self,
+        principle_id: str,
+        success: bool,
+    ) -> None:
+        """
+        Record the effectiveness of an intervention based on a principle.
+
+        This enables the agent to learn which principles work best for this user
+        and adapt future recommendations accordingly.
+
+        Args:
+            principle_id: The ID of the principle used.
+            success: Whether the intervention was successful.
+
+        Example:
+            >>> memory = UserMemory(user_id="user123")
+            >>> memory.record_intervention_feedback("friction_increase", True)
+            >>> memory.record_intervention_feedback("friction_increase", True)
+            >>> feedback = memory.intervention_feedback["friction_increase"]
+            >>> print(f"Success rate: {feedback['successes']}/{feedback['total']}")
+        """
+        if principle_id not in self.intervention_feedback:
+            self.intervention_feedback[principle_id] = {
+                "successes": 0,
+                "failures": 0,
+                "total": 0,
+                "success_rate": 0.0,
+            }
+
+        feedback = self.intervention_feedback[principle_id]
+        feedback["total"] += 1
+
+        if success:
+            feedback["successes"] += 1
+        else:
+            feedback["failures"] += 1
+
+        # Calculate success rate
+        feedback["success_rate"] = feedback["successes"] / feedback["total"]
+
+    def get_most_effective_principles(
+        self, min_uses: int = 2
+    ) -> list[tuple[str, float]]:
+        """
+        Get principles ranked by effectiveness for this user.
+
+        Args:
+            min_uses: Minimum number of times a principle must have been used.
+
+        Returns:
+            list[tuple[str, float]]: List of (principle_id, success_rate) tuples,
+                                     sorted by success rate descending.
+
+        Example:
+            >>> memory = UserMemory(user_id="user123")
+            >>> memory.record_intervention_feedback("friction_increase", True)
+            >>> memory.record_intervention_feedback("friction_increase", True)
+            >>> effective = memory.get_most_effective_principles(min_uses=1)
+            >>> print(effective[0])  # ('friction_increase', 1.0)
+        """
+        principles = []
+
+        for principle_id, feedback in self.intervention_feedback.items():
+            if feedback["total"] >= min_uses:
+                principles.append((principle_id, feedback["success_rate"]))
+
+        # Sort by success rate descending
+        principles.sort(key=lambda x: x[1], reverse=True)
+
+        return principles
+
+
+def build_memory_summary(memory: UserMemory, include_profile: bool = True) -> str:
     """
     Build a text-based summary of user memory patterns and progress.
 
@@ -273,10 +508,11 @@ def build_memory_summary(memory: UserMemory) -> str:
 
     Args:
         memory: UserMemory instance containing user's goals, streaks, and history.
+        include_profile: Whether to include user profile hints for personalization.
 
     Returns:
         str: A formatted text summary covering current streaks, struggle counts,
-             and recent struggle patterns.
+             recent struggle patterns, and optionally profile information.
 
     Example:
         >>> memory = UserMemory(user_id="user123")
@@ -290,6 +526,14 @@ def build_memory_summary(memory: UserMemory) -> str:
     summary_parts = []
     summary_parts.append("📊 **Memory Summary**\n")
     summary_parts.append("=" * 50 + "\n")
+
+    # Include user profile for personalization
+    if include_profile and memory.user_profile:
+        profile = memory.user_profile
+        summary_parts.append("\n👤 **User Profile:**\n")
+        summary_parts.append(f"  • Engagement: {profile.engagement_level.title()}\n")
+        summary_parts.append(f"  • Preferred tone: {profile.preferred_tone.title()}\n")
+        summary_parts.append(f"  • Learning pace: {profile.learning_speed.title()}\n")
 
     # Current streak status
     if memory.streaks:
