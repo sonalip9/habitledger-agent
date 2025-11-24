@@ -19,6 +19,115 @@ from .memory import UserMemory
 logger = logging.getLogger(__name__)
 
 
+def _generate_clarifying_questions(
+    principle_id: str,
+    user_input: str,  # noqa: ARG001
+    behaviour_db: dict[str, Any],
+) -> str:
+    """
+    Generate clarifying questions when confidence is low.
+
+    Args:
+        principle_id: The tentatively detected principle ID.
+        user_input: The user's original input (reserved for future use).
+        behaviour_db: Dictionary containing behavioural principles.
+
+    Returns:
+        str: Response with clarifying questions to gather more context.
+    """
+    principles = behaviour_db.get("principles", [])
+    principle_data = next(
+        (p for p in principles if p.get("id") == principle_id),
+        None,
+    )
+
+    principle_name = (
+        principle_data.get("name", principle_id) if principle_data else principle_id
+    )
+
+    response_parts = []
+    response_parts.append("🤔 **Let me understand better...**\n\n")
+    response_parts.append(
+        f"I'm thinking this might relate to **{principle_name}**, "
+        "but I'd like to know more to give you the best guidance.\n\n"
+    )
+    response_parts.append("**Can you tell me more about:**\n")
+
+    # Generate contextual questions based on principle
+    questions = _get_clarifying_questions_for_principle(principle_id)
+    for i, question in enumerate(questions, 1):
+        response_parts.append(f"{i}. {question}\n")
+
+    response_parts.append(
+        "\n💡 The more details you share, the better I can support you!"
+    )
+
+    return "".join(response_parts)
+
+
+def _get_clarifying_questions_for_principle(principle_id: str) -> list[str]:
+    """
+    Get relevant clarifying questions for a specific principle.
+
+    Args:
+        principle_id: The principle ID to generate questions for.
+
+    Returns:
+        list[str]: List of 2-3 clarifying questions.
+    """
+    questions_map = {
+        "loss_aversion": [
+            "Have you been tracking this habit? How long have you been working on it?",
+            "What would it feel like to lose your progress?",
+            "Is there a specific goal or milestone you're worried about missing?",
+        ],
+        "habit_loops": [
+            "What usually triggers this behavior? (Time of day, emotion, situation)",
+            "What do you get out of doing this? (Relief, comfort, excitement)",
+            "When did you first notice this pattern?",
+        ],
+        "commitment_devices": [
+            "Have you tried to change this before? What happened?",
+            "Who in your life knows about this goal?",
+            "What would make it harder for you to give up on this?",
+        ],
+        "temptation_bundling": [
+            "What activities do you genuinely enjoy doing?",
+            "What makes this goal feel like a chore?",
+            "Is there something fun you could combine with this?",
+        ],
+        "friction_reduction": [
+            "What specific steps are required to do this?",
+            "Which part feels most complicated or time-consuming?",
+            "If this were super easy, would you do it more often?",
+        ],
+        "friction_increase": [
+            "How easy is it to do this impulsive action right now?",
+            "What steps are involved from urge to action?",
+            "Have you noticed specific times when it's hardest to resist?",
+        ],
+        "default_effect": [
+            "Is this something you have to remember to do manually?",
+            "Would you benefit from automating any part of this?",
+            "What's your current default behavior in this situation?",
+        ],
+        "micro_habits": [
+            "What's the smallest version of this goal you could imagine?",
+            "Does the goal feel overwhelming right now?",
+            "What's one tiny thing you could do today?",
+        ],
+    }
+
+    return questions_map.get(
+        principle_id,
+        [
+            "What's the main challenge you're facing?",
+            "When does this usually happen?",
+            "What have you tried before?",
+        ],
+    )
+
+
 def load_behaviour_db(path: str) -> dict[str, Any]:
     """
     Load the behaviour principles database from a JSON file.
@@ -125,7 +234,11 @@ Generate a supportive, actionable coaching response. Use the behaviour_db_tool i
         tool_used = False
         final_response_parts = []
 
-        if response.candidates and response.candidates[0].content:
+        if (
+            response.candidates
+            and response.candidates[0].content
+            and response.candidates[0].content.parts
+        ):
             for part in response.candidates[0].content.parts:
                 if hasattr(part, "function_call") and part.function_call:
                     tool_used = True
@@ -146,7 +259,9 @@ Generate a supportive, actionable coaching response. Use the behaviour_db_tool i
                             extra={
                                 "event": "tool_call",
                                 "tool_name": func_name,
-                                "principle_id": tool_result.get("detected_principle_id"),
+                                "principle_id": tool_result.get(
+                                    "detected_principle_id"
+                                ),
                                 "source": "adk",
                             },
                         )
@@ -175,6 +290,7 @@ Generate a supportive, actionable coaching response. Use the behaviour_db_tool i
                         if (
                             final_response.candidates
                             and final_response.candidates[0].content
+                            and final_response.candidates[0].content.parts
                         ):
                             for final_part in final_response.candidates[
                                 0
@@ -192,7 +308,7 @@ Generate a supportive, actionable coaching response. Use the behaviour_db_tool i
                 if len(prompt_context.get("user_input", "")) > 200
                 else prompt_context.get("user_input", "")
             )
-            
+
             logger.info(
                 "ADK agent response generated",
                 extra={
@@ -255,17 +371,41 @@ def run_once(
         >>> print(response)
         🎯 Detected Principle: Friction Increase (Make Bad Habits Hard)...
     """
+    # Record user input in conversation history
+    memory.add_conversation_turn("user", user_input)
+
     # Step 1: Analyze user behaviour
     analysis = analyse_behaviour(user_input, memory, behaviour_db)
 
     detected_principle_id = analysis.get("detected_principle_id")
     reason = analysis.get("reason", "")
     interventions = analysis.get("intervention_suggestions", [])
+    confidence = analysis.get("confidence", 0.7)
 
-    # Step 2: Build memory summary for context
+    # Step 2: Check confidence and handle low-confidence detections
+    if confidence < 0.6 and detected_principle_id:
+        logger.info(
+            "Low confidence detection (%.2f), asking clarifying questions",
+            confidence,
+            extra={
+                "event": "low_confidence_handling",
+                "principle_id": detected_principle_id,
+                "confidence": confidence,
+            },
+        )
+        # Generate clarifying questions instead of direct intervention
+        response = _generate_clarifying_questions(
+            detected_principle_id, user_input, behaviour_db
+        )
+        memory.add_conversation_turn(
+            "assistant", response, {"confidence": confidence, "clarification": True}
+        )
+        return response
+
+    # Step 3: Build memory summary for context
     memory_summary = f"Goals: {len(memory.goals)}, Streaks: {len(memory.streaks)}, Recent struggles: {len(memory.struggles)}"
 
-    # Step 3: Try ADK agent for response generation
+    # Step 4: Try ADK agent for response generation
     prompt_context = {
         "user_input": user_input,
         "analysis_result": analysis,
@@ -281,6 +421,17 @@ def run_once(
                 "event": "response_generation",
                 "source": "adk",
                 "principle_id": detected_principle_id,
+                "confidence": confidence,
+            },
+        )
+        # Record assistant response in conversation history
+        memory.add_conversation_turn(
+            "assistant",
+            adk_response,
+            {
+                "principle_id": detected_principle_id,
+                "confidence": confidence,
+                "source": "adk",
             },
         )
         # Update memory
@@ -294,13 +445,14 @@ def run_once(
             )
         return adk_response
 
-    # Step 4: Fallback to template-based response
+    # Step 5: Fallback to template-based response
     logger.info(
         "Falling back to template-based response",
         extra={
             "event": "response_generation",
             "source": "template",
             "principle_id": detected_principle_id,
+            "confidence": confidence,
         },
     )
 
@@ -320,7 +472,10 @@ def run_once(
             else detected_principle_id
         )
 
-        response_parts.append(f"🎯 **Detected Principle:** {principle_name}\n")
+        response_parts.append(f"🎯 **Detected Principle:** {principle_name}")
+        if confidence < 0.8:
+            response_parts.append(f" (Confidence: {int(confidence * 100)}%)")
+        response_parts.append("\n")
         response_parts.append(f"💡 **Why:** {reason}\n")
 
         # Add behavioural explanation
@@ -343,7 +498,7 @@ def run_once(
             for i, intervention in enumerate(interventions[:3], 1):
                 response_parts.append(f"\n{i}. {intervention}")
 
-    # Step 3: Update memory
+    # Step 6: Update memory
     # Record this as an intervention if a principle was detected
     if detected_principle_id and interventions:
         memory.record_interaction(
@@ -354,8 +509,20 @@ def run_once(
             }
         )
 
-    # Step 4: Return formatted response
-    return "".join(response_parts)
+    # Record assistant response in conversation history
+    final_response = "".join(response_parts)
+    memory.add_conversation_turn(
+        "assistant",
+        final_response,
+        {
+            "principle_id": detected_principle_id,
+            "confidence": confidence,
+            "source": "template",
+        },
+    )
+
+    # Step 7: Return formatted response
+    return final_response
 
 
 def generate_session_summary(memory: UserMemory) -> str:
@@ -484,7 +651,7 @@ def main() -> None:
     """
     # Set up logging
     setup_logging()
-    
+
     print("=" * 60)
     print("🌟 Welcome to HabitLedger - Your Behavioural Money Coach")
     print("=" * 60)
