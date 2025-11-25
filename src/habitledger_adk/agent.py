@@ -16,16 +16,17 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from google.genai import Client
+from google.genai.types import FunctionDeclaration, Schema, Tool, Type
+
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from google.genai import Client
-from google.genai.types import Tool, FunctionDeclaration, Schema, Type
 
+from src.behaviour_engine import analyse_behaviour
+from src.coach import load_behaviour_db, run_once
 from src.config import get_adk_model_name
 from src.memory import UserMemory
-from src.coach import run_once, load_behaviour_db
-from src.behaviour_engine import analyse_behaviour
 
 logger = logging.getLogger(__name__)
 

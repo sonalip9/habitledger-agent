@@ -190,7 +190,7 @@ def call_adk_agent(prompt_context: dict[str, Any]) -> str | None:
         from .config import get_adk_model_name, get_api_key
         from .habitledger_adk.agent import (
             INSTRUCTION_TEXT,
-            behaviour_db_function_tool,
+            get_behaviour_db_tool,
             behaviour_db_tool,
         )
 
@@ -219,7 +219,7 @@ Generate a supportive, actionable coaching response. Use the behaviour_db_tool i
 
         config = GenerateContentConfig(
             system_instruction=INSTRUCTION_TEXT,
-            tools=[behaviour_db_function_tool],
+            tools=[get_behaviour_db_tool()],
             temperature=0.7,
         )
 
