@@ -133,11 +133,35 @@ def analyse_behaviour_with_llm(
         >>> print(result["detected_principle_id"]) if result else print("Failed")
         friction_increase
     """
+    import time
+
+    start_time = time.time()
+    user_input_truncated = user_input[:100] if len(user_input) > 100 else user_input
+
+    logger.info(
+        "Starting LLM behaviour analysis",
+        extra={
+            "event": "llm_analysis_start",
+            "user_input_preview": user_input_truncated,
+            "memory_goals_count": (
+                len(user_memory.goals) if hasattr(user_memory, "goals") else 0
+            ),
+            "memory_streaks_count": (
+                len(user_memory.streaks) if hasattr(user_memory, "streaks") else 0
+            ),
+        },
+    )
+
     try:
         # Initialize client
         api_key = get_api_key()
         client = Client(api_key=api_key)
         model_name = get_adk_model_name()
+
+        logger.debug(
+            "LLM client initialized",
+            extra={"model": model_name},
+        )
 
         # Create the behaviour analysis tool
         analysis_tool = _create_behaviour_analysis_tool(behaviour_db)
@@ -184,11 +208,26 @@ Please analyze this situation and use the analyse_behaviour tool to provide:
         )
 
         # Generate response
-        logger.info("Sending request to LLM for behaviour analysis")
+        logger.info(
+            "Sending request to LLM for behaviour analysis",
+            extra={"model": model_name, "temperature": config.temperature},
+        )
+
+        llm_start = time.time()
         response = client.models.generate_content(
             model=model_name,
             contents=prompt,
             config=config,
+        )
+        llm_duration_ms = int((time.time() - llm_start) * 1000)
+
+        logger.info(
+            "LLM response received",
+            extra={
+                "event": "llm_response",
+                "duration_ms": llm_duration_ms,
+                "has_candidates": bool(response.candidates),
+            },
         )
 
         # Extract tool call from response
@@ -202,19 +241,30 @@ Please analyze this situation and use the analyse_behaviour tool to provide:
                     # Extract the function call arguments
                     args = part.function_call.args
 
-                    # Log the LLM's decision
+                    total_duration_ms = int((time.time() - start_time) * 1000)
+
+                    # Log the LLM's decision with full metrics
                     logger.info(
-                        "LLM recommended principle: %s",
-                        args.get("principle_id", "unknown"),
+                        "LLM analysis successful",
+                        extra={
+                            "event": "llm_analysis_complete",
+                            "principle_id": args.get("principle_id", "unknown"),
+                            "reason": args.get("reason", "N/A")[:150],
+                            "intervention_count": len(
+                                args.get("intervention_suggestions", [])
+                            ),
+                            "triggers_count": len(args.get("triggers_matched", [])),
+                            "total_duration_ms": total_duration_ms,
+                            "source": "adk",
+                        },
                     )
-                    logger.info("LLM reasoning: %s", args.get("reason", "N/A"))
-                    logger.info(
-                        "LLM interventions: %s",
-                        args.get("intervention_suggestions", []),
-                    )
-                    logger.info(
-                        "LLM matched triggers: %s",
-                        args.get("triggers_matched", []),
+
+                    logger.debug(
+                        "LLM detailed results",
+                        extra={
+                            "interventions": args.get("intervention_suggestions", []),
+                            "triggers": args.get("triggers_matched", []),
+                        },
                     )
 
                     # Convert to our expected format
@@ -259,11 +309,30 @@ Please analyze this situation and use the analyse_behaviour tool to provide:
 
                     return result
 
-        logger.warning("LLM did not return a function call")
+        total_duration_ms = int((time.time() - start_time) * 1000)
+        logger.warning(
+            "LLM did not return a function call",
+            extra={
+                "event": "llm_analysis_failed",
+                "reason": "no_function_call",
+                "duration_ms": total_duration_ms,
+            },
+        )
         return None
 
     except Exception as e:  # noqa: BLE001
-        logger.error("LLM analysis failed: %s", str(e))
+        total_duration_ms = int((time.time() - start_time) * 1000)
+        logger.error(
+            "LLM analysis failed: %s",
+            str(e),
+            extra={
+                "event": "llm_analysis_error",
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "duration_ms": total_duration_ms,
+            },
+            exc_info=True,
+        )
         return None
 
 

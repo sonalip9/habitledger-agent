@@ -105,23 +105,27 @@ def get_adk_model_name() -> str:
     return os.getenv("GOOGLE_ADK_MODEL", "gemini-2.0-flash-exp")
 
 
-def setup_logging(level: str = "INFO") -> None:
+def setup_logging(level: str = "INFO", structured: bool = False) -> None:
     """
-    Configure logging for HabitLedger.
+    Configure logging for HabitLedger with observability features.
 
     Sets up logging with a standard format showing timestamp, level, module, and message.
+    Supports structured logging for better observability and metrics collection.
     Call this at application startup to enable logging throughout the application.
 
     Args:
         level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
-               Can also be set via HABITLEDGER_LOG_LEVEL environment variable.
+               Can also be set via LOG_LEVEL environment variable.
+        structured: Whether to use JSON-structured logging for observability (default: False).
+                   Can also be set via STRUCTURED_LOGGING=true environment variable.
 
     Example:
         >>> setup_logging()
-        >>> # Or with custom level
-        >>> setup_logging("DEBUG")
+        >>> # Or with custom level and structured logging
+        >>> setup_logging("DEBUG", structured=True)
     """
     log_level = os.getenv("LOG_LEVEL", level).upper()
+    use_structured = os.getenv("STRUCTURED_LOGGING", str(structured)).lower() == "true"
 
     valid_levels = {"CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"}
     if log_level not in valid_levels:
@@ -129,8 +133,32 @@ def setup_logging(level: str = "INFO") -> None:
             f"Invalid log level '{log_level}'. Valid levels are: {', '.join(sorted(valid_levels))}."
         )
 
+    # Enhanced format with function name and line number for better debugging
+    if use_structured:
+        # JSON-like structured format for observability tools
+        log_format = (
+            "timestamp=%(asctime)s level=%(levelname)s module=%(name)s "
+            "function=%(funcName)s line=%(lineno)d message=%(message)s"
+        )
+    else:
+        # Human-readable format
+        log_format = (
+            "%(asctime)s [%(levelname)s] %(name)s.%(funcName)s:%(lineno)d - %(message)s"
+        )
+
     logging.basicConfig(
         level=getattr(logging, log_level),
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        format=log_format,
         datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    # Log startup information
+    logger = logging.getLogger(__name__)
+    logger.info(
+        "Logging configured",
+        extra={
+            "log_level": log_level,
+            "structured": use_structured,
+            "version": "1.0.0",
+        },
     )

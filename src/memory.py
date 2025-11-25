@@ -9,6 +9,7 @@ and retrieving user state without mixing in business logic or behaviour analysis
 """
 
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -268,11 +269,26 @@ class UserMemory:
             >>> memory = UserMemory(user_id="user123")
             >>> memory.save_to_file("data/user123.json")
         """
+
+        logger = logging.getLogger(__name__)
         file_path = Path(path)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(self.to_dict(), f, indent=2, ensure_ascii=False)
+
+        logger.info(
+            "Memory saved to file",
+            extra={
+                "event": "memory_save",
+                "user_id": self.user_id,
+                "file_path": str(file_path),
+                "goals_count": len(self.goals),
+                "streaks_count": len(self.streaks),
+                "interventions_count": len(self.interventions),
+                "conversations_count": len(self.conversation_history),
+            },
+        )
 
     def save_to_session_state(
         self, session_state: dict[str, Any], key_prefix: str = "user:"
@@ -416,6 +432,20 @@ class UserMemory:
 
         # Update last check-in timestamp
         self.last_check_in = timestamp
+
+        # Log the interaction recording
+        logger = logging.getLogger(__name__)
+        logger.info(
+            "Interaction recorded",
+            extra={
+                "event": "interaction_recorded",
+                "user_id": self.user_id,
+                "outcome_type": outcome_type,
+                "streak_name": outcome.get("streak_name"),
+                "principle_id": outcome.get("principle_id"),
+                "timestamp": timestamp,
+            },
+        )
 
     def add_conversation_turn(
         self,

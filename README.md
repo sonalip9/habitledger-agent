@@ -284,7 +284,7 @@ This continuous, stateful operation distinguishes HabitLedger as a true **agent*
 
 ### 2. Behaviour Analysis
 
-- Detects underlying patterns (for example, “end-of-month overspending”)  
+- Detects underlying patterns (for example, "end-of-month overspending")  
 - Links user behaviour to behavioural science concepts  
 - Suggests targeted interventions aligned with the detected bias
 - Uses LLM-powered analysis for nuanced understanding of user situations
@@ -293,12 +293,22 @@ This continuous, stateful operation distinguishes HabitLedger as a true **agent*
 
 ### 3. Memory & Tracking
 
-- Stores user goals (for example, “save a fixed amount each month”)  
+- Stores user goals (for example, "save a fixed amount each month")  
 - Tracks simple streaks (days you reported sticking to a habit)  
 - Records recurring struggles in free-text form  
 - Generates simple summaries of recent behaviour
 
-### 4. Demo-Friendly Notebook
+### 4. Observability & Logging
+
+- **Structured logging** with event types, metrics, and decision context
+- **Performance monitoring**: Track LLM latency, tool execution time, response generation
+- **Decision transparency**: Log every principle detection, confidence score, and intervention selection
+- **Session analytics**: Monitor user engagement, streak progress, and intervention effectiveness
+- **Error tracking**: Detailed error context with stack traces for debugging
+- Compatible with observability tools (ELK, Datadog, Splunk, Prometheus)
+- See [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md) for detailed documentation
+
+### 5. Demo-Friendly Notebook
 
 - A clean Jupyter notebook for showcasing the agent  
 - Sample dialogues and pre-defined scenarios  
@@ -376,8 +386,8 @@ Planned structure (you can adjust as needed):
    HABITLEDGER_LOG_LEVEL=INFO
    ```
 
-   The agent will use LLM-based analysis when `GOOGLE_API_KEY` is set, 
-   and automatically fall back to keyword-based analysis if the key is missing 
+   The agent will use LLM-based analysis when `GOOGLE_API_KEY` is set,
+   and automatically fall back to keyword-based analysis if the key is missing
    or LLM calls fail.
 
 ---

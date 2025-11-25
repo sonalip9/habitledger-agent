@@ -58,9 +58,21 @@ def save_memory_to_session(session: Session, user_memory: UserMemory) -> None:
     """
     memory_dict = user_memory.to_dict()
     session.state[STATE_USER_MEMORY] = memory_dict
+
     logger.info(
         "Memory saved to session state",
-        extra={"session_id": session.id, "user_id": user_memory.user_id},
+        extra={
+            "event": "session_memory_save",
+            "session_id": session.id,
+            "user_id": user_memory.user_id,
+            "goals_count": len(user_memory.goals),
+            "active_streaks": sum(
+                1 for s in user_memory.streaks.values() if s.get("current", 0) > 0
+            ),
+            "total_streaks": len(user_memory.streaks),
+            "struggles_count": len(user_memory.struggles),
+            "conversation_turns": len(user_memory.conversation_history),
+        },
     )
 
 
@@ -314,11 +326,17 @@ def run_cli() -> None:
                     session.state[STATE_CONVERSATION_COUNT] = count + 1
 
                     logger.info(
-                        "Session state saved",
+                        "Session interaction complete",
                         extra={
+                            "event": "session_interaction",
                             "session_id": session.id,
-                            "interactions": len(user_memory.interventions),
+                            "user_id": session.user_id,
+                            "interventions": len(user_memory.interventions),
                             "conversation_turns": count + 1,
+                            "response_length": (
+                                len(agent_response) if agent_response else 0
+                            ),
+                            "session_events": len(session.events),
                         },
                     )
 
