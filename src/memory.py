@@ -274,6 +274,61 @@ class UserMemory:
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(self.to_dict(), f, indent=2, ensure_ascii=False)
 
+    def save_to_session_state(
+        self, session_state: dict[str, Any], key_prefix: str = "user:"
+    ) -> None:
+        """
+        Save UserMemory to ADK session state with proper scoping.
+
+        This method maps UserMemory fields to session.state keys using
+        ADK's prefix convention for state scoping:
+        - 'user:' prefix: persists across all sessions for this user
+        - No prefix: session-scoped only
+        - 'temp:' prefix: discarded after invocation
+
+        Args:
+            session_state: The session.state dictionary to update.
+            key_prefix: Prefix for state keys (default: "user:" for cross-session persistence).
+
+        Example:
+            >>> from google.adk.sessions import Session
+            >>> session = Session(id='test', app_name='habitledger', userId='user123')
+            >>> memory = UserMemory(user_id='user123')
+            >>> memory.save_to_session_state(session.state)
+            >>> print(session.state['user:memory'])
+        """
+        # Store full memory dict under single key for simplicity
+        memory_key = f"{key_prefix}memory" if key_prefix else "memory"
+        session_state[memory_key] = self.to_dict()
+
+    @classmethod
+    def load_from_session_state(
+        cls,
+        session_state: dict[str, Any],
+        key_prefix: str = "user:",
+    ) -> Optional["UserMemory"]:
+        """
+        Load UserMemory from ADK session state.
+
+        Args:
+            session_state: The session.state dictionary to read from.
+            key_prefix: Prefix for state keys (default: "user:").
+
+        Returns:
+            UserMemory or None: Loaded memory if found, None otherwise.
+
+        Example:
+            >>> from google.adk.sessions import Session
+            >>> session = Session(id='test', app_name='habitledger', userId='user123')
+            >>> memory = UserMemory.load_from_session_state(session.state)
+        """
+        memory_key = f"{key_prefix}memory" if key_prefix else "memory"
+        memory_dict = session_state.get(memory_key)
+
+        if memory_dict:
+            return cls.from_dict(memory_dict)
+        return None
+
     def record_interaction(self, outcome: dict[str, Any]) -> None:
         """
         Record an interaction outcome to update streaks and struggles.

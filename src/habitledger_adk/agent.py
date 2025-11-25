@@ -4,6 +4,11 @@ ADK-based HabitLedger root agent definition.
 This module defines the main ADK agent for HabitLedger, configuring it
 with appropriate instructions and behavioural coaching capabilities using
 Google's Agent Development Kit (ADK).
+
+Note: This module uses global memory state for simplicity in the demo.
+For production with ADK Runner integration, use the session-based memory
+management provided in runner.py which integrates with ADK's native
+session services (DatabaseSessionService).
 """
 
 import logging
@@ -275,8 +280,37 @@ def create_root_agent(
     return client
 
 
-# Default root agent instance using configured model
-root_agent = create_root_agent(model_name=get_adk_model_name())
+# Module-level instances (created lazily to avoid requiring API key at import time)
+_root_agent = None
+_behaviour_db_function_tool = None
 
-# Create the behaviour DB tool for use with the agent
-behaviour_db_function_tool = create_behaviour_db_function_tool()
+
+def get_root_agent() -> Client:
+    """
+    Get or create the default root agent instance.
+
+    Returns:
+        Client: The configured HabitLedger agent client.
+    """
+    global _root_agent  # noqa: PLW0603
+    if _root_agent is None:
+        _root_agent = create_root_agent(model_name=get_adk_model_name())
+    return _root_agent
+
+
+def get_behaviour_db_tool() -> Tool:
+    """
+    Get or create the behaviour DB function tool.
+
+    Returns:
+        Tool: The behaviour DB analysis tool.
+    """
+    global _behaviour_db_function_tool  # noqa: PLW0603
+    if _behaviour_db_function_tool is None:
+        _behaviour_db_function_tool = create_behaviour_db_function_tool()
+    return _behaviour_db_function_tool
+
+
+# Legacy exports for backward compatibility
+root_agent = property(lambda self: get_root_agent())
+behaviour_db_function_tool = property(lambda self: get_behaviour_db_tool())
