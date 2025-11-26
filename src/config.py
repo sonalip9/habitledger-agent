@@ -63,30 +63,6 @@ def get_api_key() -> str:
     return api_key
 
 
-def get_model_name() -> str:
-    """
-    Get the LLM model name to use for the agent.
-
-    Currently returns a hardcoded default model name, but this function
-    can be extended to read from environment variables or configuration files.
-
-    Returns:
-        str: The model name (e.g., "gpt-4o-mini").
-
-    Note:
-        Future enhancement: Make this configurable via environment variable
-        MODEL_NAME with this as the fallback default.
-
-    Example:
-        >>> model = get_model_name()
-        >>> print(model)
-        gpt-4o-mini
-    """
-    # TODO: Make configurable via environment variable
-    # return os.getenv("MODEL_NAME", "gpt-4o-mini")
-    return "gpt-4o-mini"
-
-
 def get_adk_model_name() -> str:
     """
     Get the model name to be used by the ADK HabitLedger agent.
