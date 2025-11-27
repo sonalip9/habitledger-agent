@@ -255,9 +255,7 @@ def _analyse_behaviour_keyword(
             "Keyword classification - principle not in DB",
             extra={"principle_id": best_principle_id, "source": "keyword"},
         )
-        # Calculate basic confidence
-        total_keywords_for_principle = len(KEYWORD_MAPPINGS.get(best_principle_id, []))
-        matched_count = len(matched_triggers)
+        # Recalculate confidence without memory bonus since principle not in DB
         confidence = _calculate_confidence_score(
             matched_count, total_keywords_for_principle, 0
         )

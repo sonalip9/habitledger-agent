@@ -14,6 +14,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
+# Module-level logger for consistent logging across all functions
+logger = logging.getLogger(__name__)
+
 
 class UserProfile:
     """
@@ -269,8 +272,6 @@ class UserMemory:
             >>> memory = UserMemory(user_id="user123")
             >>> memory.save_to_file("data/user123.json")
         """
-
-        logger = logging.getLogger(__name__)
         file_path = Path(path)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -433,8 +434,7 @@ class UserMemory:
         # Update last check-in timestamp
         self.last_check_in = timestamp
 
-        # Log the interaction recording
-        logger = logging.getLogger(__name__)
+        # Log the interaction recording using module-level logger
         logger.info(
             "Interaction recorded",
             extra={

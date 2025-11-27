@@ -204,12 +204,11 @@ def run_cli() -> None:
     Run the HabitLedger ADK agent in a simple CLI loop with session persistence.
 
     This function provides a command-line interface for interacting with the
-    HabitLedger agent. It uses ADK's DatabaseSessionService to maintain session
-    state with full persistence across application restarts.
+    HabitLedger agent. It uses ADK's InMemorySessionService to maintain session
+    state during the application lifetime (state is lost on restart).
 
     The CLI accepts user input, sends it to the agent with tool support,
     displays coaching responses, and updates session memory after each turn.
-    Session events are automatically tracked by the ADK session service.
 
     Example:
         Run from command line:

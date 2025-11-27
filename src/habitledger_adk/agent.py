@@ -313,5 +313,5 @@ def get_behaviour_db_tool() -> Tool:
 
 
 # Legacy exports for backward compatibility
-root_agent = property(lambda self: get_root_agent())
-behaviour_db_function_tool = property(lambda self: get_behaviour_db_tool())
+root_agent = get_root_agent
+behaviour_db_function_tool = get_behaviour_db_tool
