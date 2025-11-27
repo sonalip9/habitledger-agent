@@ -122,16 +122,23 @@ def setup_logging(level: str = "INFO", structured: bool = False) -> None:
             "%(asctime)s [%(levelname)s] %(name)s.%(funcName)s:%(lineno)d - %(message)s"
         )
 
+    # Create console handler for CLI/debugging output
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(log_level)
+    console_handler.setFormatter(
+        logging.Formatter(log_format, datefmt="%Y-%m-%d %H:%M:%S")
+    )
+
+    # Create file handler for persistent logging
     file_handler = logging.FileHandler("habitledger.log")
     file_handler.setLevel(log_level)
     file_handler.setFormatter(
         logging.Formatter(log_format, datefmt="%Y-%m-%d %H:%M:%S")
     )
+
     logging.basicConfig(
         level=getattr(logging, log_level),
-        format=log_format,
-        datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[file_handler],
+        handlers=[console_handler, file_handler],
     )
 
     # Log startup information

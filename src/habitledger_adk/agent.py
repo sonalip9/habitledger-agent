@@ -310,8 +310,3 @@ def get_behaviour_db_tool() -> Tool:
     if _behaviour_db_function_tool is None:
         _behaviour_db_function_tool = create_behaviour_db_function_tool()
     return _behaviour_db_function_tool
-
-
-# Legacy exports for backward compatibility
-root_agent = property(lambda self: get_root_agent())
-behaviour_db_function_tool = property(lambda self: get_behaviour_db_tool())
