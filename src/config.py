@@ -136,13 +136,18 @@ def setup_logging(level: str = "INFO", structured: bool = False) -> None:
         logging.Formatter(log_format, datefmt="%Y-%m-%d %H:%M:%S")
     )
 
+    # Explicitly set root logger level before configuring handlers
+    logger = logging.getLogger()
+    logger.setLevel(getattr(logging, log_level))
+
     logging.basicConfig(
-        level=getattr(logging, log_level),
+        format=log_format,
+        datefmt="%Y-%m-%d %H:%M:%S",
         handlers=[console_handler, file_handler],
+        force=True,
     )
 
     # Log startup information
-    logger = logging.getLogger(__name__)
     logger.info(
         "Logging configured",
         extra={
