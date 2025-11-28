@@ -18,6 +18,12 @@ from typing import Any, Optional
 logger = logging.getLogger(__name__)
 
 
+# TODO: Add test coverage for UserProfile class:
+#   1. Default initialization with correct default values
+#   2. to_dict() serialization produces correct structure
+#   3. from_dict() deserialization handles missing fields with defaults
+#   4. update_from_interaction() correctly updates engagement level and learning speed
+#   5. State transitions (e.g., "low" → "medium" → "high" engagement)
 class UserProfile:
     """
     Tracks user personality and preferences for adaptive response generation.
@@ -31,13 +37,6 @@ class UserProfile:
         engagement_level (str): Current engagement pattern ("high", "medium", "low").
         preferred_tone (str): Communication preference ("direct", "supportive", "educational").
         learning_speed (str): How quickly user adopts suggestions ("fast", "moderate", "slow").
-
-    TODO: Add test coverage for UserProfile class:
-        1. Default initialization with correct default values
-        2. to_dict() serialization produces correct structure
-        3. from_dict() deserialization handles missing fields with defaults
-        4. update_from_interaction() correctly updates engagement level and learning speed
-        5. State transitions (e.g., "low" → "medium" → "high" engagement)
     """
 
     def __init__(
