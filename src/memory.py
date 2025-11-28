@@ -21,6 +21,12 @@ logger = logging.getLogger(__name__)
 MAX_CONVERSATION_CONTEXT_LENGTH = 200
 
 
+# TODO: Add test coverage for UserProfile class:
+#   1. Default initialization with correct default values
+#   2. to_dict() serialization produces correct structure
+#   3. from_dict() deserialization handles missing fields with defaults
+#   4. update_from_interaction() correctly updates engagement level and learning speed
+#   5. State transitions (e.g., "low" → "medium" → "high" engagement)
 class UserProfile:
     """
     Tracks user personality and preferences for adaptive response generation.
@@ -298,13 +304,15 @@ class UserMemory:
         self, session_state: dict[str, Any], key_prefix: str = "user:"
     ) -> None:
         """
-        Save UserMemory to ADK session state with proper scoping.
+        Save UserMemory to ADK session state with "user:" scoping.
 
-        This method maps UserMemory fields to session.state keys using
-        ADK's prefix convention for state scoping:
-        - 'user:' prefix: persists across all sessions for this user
-        - No prefix: session-scoped only
-        - 'temp:' prefix: discarded after invocation
+        This helper function currently only implements the "user:" scope prefix
+        for cross-session persistence. ADK supports three scoping prefixes:
+        - 'user:' prefix: persists across all sessions for this user (implemented)
+        - No prefix: session-scoped only (not implemented in this helper)
+        - 'temp:' prefix: discarded after invocation (not implemented in this helper)
+
+        TODO: Implement support for all three scoping levels (user:, temp:, no prefix).
 
         Args:
             session_state: The session.state dictionary to update.
