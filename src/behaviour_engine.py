@@ -317,6 +317,10 @@ def _apply_adaptive_weighting(
     has worked for this user in the past. Principles with higher success rates
     get boosted confidence when detected.
 
+    Note: Adaptive weighting requires at least 2 historical uses of a principle
+    before confidence adjustment is applied. This threshold ensures sufficient
+    data to make meaningful adjustments based on success patterns.
+
     Args:
         result: Initial analysis result with detected principle.
         user_memory: UserMemory instance with intervention feedback.
@@ -338,6 +342,7 @@ def _apply_adaptive_weighting(
     total_uses = feedback.get("total", 0)
 
     # Only adjust if we have enough data (at least 2 uses)
+    # Single interventions don't provide sufficient signal for adaptation
     if total_uses < 2:
         result["confidence"] = base_confidence
         return result
