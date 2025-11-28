@@ -27,6 +27,12 @@ def _generate_clarifying_questions(
     """
     Generate clarifying questions when confidence is low.
 
+    TODO: Add test coverage for this function. Tests should verify:
+    1. Returns properly formatted response with questions
+    2. Generates appropriate questions for each principle type
+    3. Handles unknown principle_id gracefully (uses default questions)
+    4. Response includes expected sections (principle name, questions, encouragement)
+
     Args:
         principle_id: The tentatively detected principle ID.
         user_input: The user's original input (reserved for future use).
