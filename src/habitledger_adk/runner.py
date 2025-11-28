@@ -3,25 +3,98 @@ Runner utilities for the HabitLedger ADK agent.
 
 This module provides runner functionality to execute the HabitLedger agent
 in various modes, including a simple CLI for local testing and demonstration.
+
+Uses Google ADK's native InMemorySessionService for session management.
 """
 
+import logging
 import sys
 from pathlib import Path
+from typing import Optional
+
+from google.adk.sessions import Session
+from google.genai import Client
+from google.genai.types import (
+    FunctionDeclaration,
+    GenerateContentConfig,
+    Schema,
+    Tool,
+    Type,
+)
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from google.genai import Client
-from google.genai.types import (
-    GenerateContentConfig,
-    Tool,
-    FunctionDeclaration,
-    Schema,
-    Type,
-)
 
 from src.config import get_adk_model_name, get_api_key, setup_logging
-from .agent import habitledger_coach_tool, INSTRUCTION_TEXT
+from src.memory import UserMemory
+from src.session_db import create_session_service
+
+from . import agent as agent_module
+from .agent import INSTRUCTION_TEXT, habitledger_coach_tool
+
+logger = logging.getLogger(__name__)
+
+
+# ADK Session State Keys
+STATE_USER_MEMORY = "user:memory"  # User-scoped: persists across sessions
+STATE_CONVERSATION_COUNT = "conversation_count"  # Session-scoped
+
+
+def save_memory_to_session(session: Session, user_memory: UserMemory) -> None:
+    """
+    Save UserMemory to ADK session state.
+
+    Uses the 'user:' prefix to ensure memory persists across all sessions
+    for this user.
+
+    Args:
+        session: ADK Session object.
+        user_memory: UserMemory instance to serialize and save.
+
+    Example:
+        >>> session = session_service.get_session_sync(session_id="sess123")
+        >>> memory = UserMemory(user_id="user123")
+        >>> save_memory_to_session(session, memory)
+    """
+    memory_dict = user_memory.to_dict()
+    session.state[STATE_USER_MEMORY] = memory_dict
+
+    logger.info(
+        "Memory saved to session state",
+        extra={
+            "event": "session_memory_save",
+            "session_id": session.id,
+            "user_id": user_memory.user_id,
+            "goals_count": len(user_memory.goals),
+            "active_streaks": sum(
+                1 for s in user_memory.streaks.values() if s.get("current", 0) > 0
+            ),
+            "total_streaks": len(user_memory.streaks),
+            "struggles_count": len(user_memory.struggles),
+            "conversation_turns": len(user_memory.conversation_history),
+        },
+    )
+
+
+def load_memory_from_session(session: Session) -> Optional[UserMemory]:
+    """
+    Load UserMemory from ADK session state.
+
+    Args:
+        session: ADK Session object.
+
+    Returns:
+        UserMemory or None: Loaded UserMemory instance if found, None otherwise.
+
+    Example:
+        >>> session = session_service.get_session_sync(session_id="sess123")
+        >>> memory = load_memory_from_session(session)
+    """
+    memory_dict = session.state.get(STATE_USER_MEMORY)
+    if memory_dict:
+        return UserMemory.from_dict(memory_dict)
+    return None
 
 
 def create_habitledger_tool() -> Tool:
@@ -60,15 +133,84 @@ def create_habitledger_tool() -> Tool:
     return Tool(function_declarations=[function_declaration])
 
 
+def create_runner(
+    user_id: str = "demo_user",
+):
+    """
+    Create an ADK runner with session management.
+
+    This function initializes a Google GenAI client and creates an
+    InMemorySessionService for session state management.
+
+    Args:
+        user_id: User identifier for the session (default: "demo_user").
+
+    Returns:
+        tuple: (client, session_service, session) - The configured client,
+               session service, and the Session object.
+
+    Example:
+        >>> client, service, session = create_runner("user123")
+        >>> memory = load_memory_from_session(session)
+        >>> print(memory.user_id)
+        user123
+    """
+    # Initialize client
+    api_key = get_api_key()
+    client = Client(api_key=api_key)
+
+    # Check if session already exists for this user
+    session_id = f"session_{user_id}"
+    app_name = "habitledger"
+
+    # Create session service using ADK's InMemorySessionService
+    session_service = create_session_service()
+
+    try:
+        session = session_service.get_session_sync(
+            session_id=session_id,
+            app_name=app_name,
+            user_id=user_id,
+        )
+        logger.info(
+            "Existing session loaded",
+            extra={"user_id": user_id, "session_id": session_id},
+        )
+    except Exception:
+        logger.info("Session not found, creating new one")
+        # Session doesn't exist, create new one
+        session = session_service.create_session_sync(
+            session_id=session_id,
+            app_name=app_name,
+            user_id=user_id,
+        )
+
+        # Initialize user memory and save to session
+        user_memory = UserMemory(user_id=user_id)
+        user_memory.goals = [
+            {"description": "Build better financial habits"},
+            {"description": "Control impulse spending"},
+        ]
+        save_memory_to_session(session, user_memory)
+
+        logger.info(
+            "New session created",
+            extra={"user_id": user_id, "session_id": session_id},
+        )
+
+    return client, session_service, session
+
+
 def run_cli() -> None:
     """
-    Run the HabitLedger ADK agent in a simple CLI loop.
+    Run the HabitLedger ADK agent in a simple CLI loop with session persistence.
 
-    This function provides a basic command-line interface for interacting
-    with the HabitLedger agent. It's primarily for local testing and demos.
+    This function provides a command-line interface for interacting with the
+    HabitLedger agent. It uses ADK's InMemorySessionService to maintain session
+    state during the application lifetime (state is lost on restart).
 
     The CLI accepts user input, sends it to the agent with tool support,
-    and displays the coaching responses.
+    displays coaching responses, and updates session memory after each turn.
 
     Example:
         Run from command line:
@@ -84,16 +226,17 @@ def run_cli() -> None:
     print("\nType 'quit' to exit.\n")
 
     try:
-        # Initialize client
-        api_key = get_api_key()
-        client = Client(api_key=api_key)
+        # Create runner with ADK session service
+        client, session_service, session = create_runner(user_id="cli_demo_user")
         model_name = get_adk_model_name()
 
         # Create tool
         habitledger_tool = create_habitledger_tool()
 
         print(f"✅ Using model: {model_name}")
-        print("✅ HabitLedger coaching tool loaded\n")
+        print("✅ HabitLedger coaching tool loaded")
+        print(f"✅ Session initialized: {session.id}")
+        print(f"✅ Session service: {type(session_service).__name__}\n")
         print("-" * 70)
 
         # Main interaction loop
@@ -105,10 +248,29 @@ def run_cli() -> None:
                     continue
 
                 if user_input.lower() in ["quit", "exit", "bye"]:
+                    # Load final memory state
+                    user_memory = load_memory_from_session(session)
+                    if user_memory:
+                        logger.info(
+                            "Session ending",
+                            extra={
+                                "session_id": session.id,
+                                "total_interventions": len(user_memory.interventions),
+                                "total_events": len(session.events),
+                            },
+                        )
                     print(
                         "\n👋 Thanks for using HabitLedger! Keep building those healthy habits!"
                     )
                     break
+
+                # Load current memory from session
+                user_memory = load_memory_from_session(session)
+
+                # Sync memory to agent's global state before tool execution
+                # This ensures the tool operates on the session memory
+                if user_memory:
+                    agent_module._user_memory = user_memory
 
                 # Generate response with tool calling
                 config = GenerateContentConfig(
@@ -123,6 +285,7 @@ def run_cli() -> None:
                 )
 
                 # Check if model wants to call the tool
+                agent_response = None
                 if (
                     response.candidates
                     and response.candidates[0].content
@@ -144,15 +307,45 @@ def run_cli() -> None:
                             tool_result = habitledger_coach_tool(tool_input)
 
                             # Send tool result back to model
+                            agent_response = tool_result["response"]
                             print("\n🤖 Coach (via tool):")
-                            print(tool_result["response"])
+                            print(agent_response)
                         elif hasattr(part, "text") and part.text:
                             # Direct text response
-                            print(f"\n🤖 Coach:\n{part.text}")
+                            agent_response = part.text
+                            print(f"\n🤖 Coach:\n{agent_response}")
                         else:
                             print("\n🤖 Coach: [No response generated]")
                 else:
                     print("\n🤖 Coach: [No response generated]")
+
+                # Note: session_service.append_event() is async and requires await
+                # For now, we rely on conversation_history in UserMemory for tracking
+
+                # Retrieve updated memory from agent's global state after tool execution
+                # The tool modifies the global _user_memory, so we need to sync it back
+                if agent_module._user_memory:
+                    user_memory = agent_module._user_memory
+                    save_memory_to_session(session, user_memory)
+
+                    # Increment conversation counter
+                    count = session.state.get(STATE_CONVERSATION_COUNT, 0)
+                    session.state[STATE_CONVERSATION_COUNT] = count + 1
+
+                    logger.info(
+                        "Session interaction complete",
+                        extra={
+                            "event": "session_interaction",
+                            "session_id": session.id,
+                            "user_id": session.user_id,
+                            "interventions": len(user_memory.interventions),
+                            "conversation_turns": count + 1,
+                            "response_length": (
+                                len(agent_response) if agent_response else 0
+                            ),
+                            "session_events": len(session.events),
+                        },
+                    )
 
                 print("\n" + "-" * 70)
 
@@ -164,10 +357,12 @@ def run_cli() -> None:
             except Exception as e:  # noqa: BLE001
                 print(f"\n❌ Error: {e}")
                 print("Please try again or type 'quit' to exit.\n")
+                logger.error("CLI interaction error", exc_info=True)
 
     except Exception as e:  # noqa: BLE001
         print(f"\n❌ Initialization error: {e}")
         print("Please check your configuration and try again.")
+        logger.error("CLI initialization error", exc_info=True)
         return
 
 
