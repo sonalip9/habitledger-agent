@@ -30,6 +30,7 @@ from src.config import get_adk_model_name, get_api_key, setup_logging
 from src.memory import UserMemory
 from src.session_db import create_session_service
 
+from . import agent as agent_module
 from .agent import INSTRUCTION_TEXT, habitledger_coach_tool
 
 logger = logging.getLogger(__name__)
@@ -266,6 +267,11 @@ def run_cli() -> None:
                 # Load current memory from session
                 user_memory = load_memory_from_session(session)
 
+                # Sync memory to agent's global state before tool execution
+                # This ensures the tool operates on the session memory
+                if user_memory:
+                    agent_module._user_memory = user_memory
+
                 # Generate response with tool calling
                 config = GenerateContentConfig(
                     system_instruction=INSTRUCTION_TEXT,
@@ -316,9 +322,10 @@ def run_cli() -> None:
                 # Note: session_service.append_event() is async and requires await
                 # For now, we rely on conversation_history in UserMemory for tracking
 
-                # Update and save memory back to session
-                if user_memory:
-                    # Memory is already updated by habitledger_coach_tool
+                # Retrieve updated memory from agent's global state after tool execution
+                # The tool modifies the global _user_memory, so we need to sync it back
+                if agent_module._user_memory:
+                    user_memory = agent_module._user_memory
                     save_memory_to_session(session, user_memory)
 
                     # Increment conversation counter
