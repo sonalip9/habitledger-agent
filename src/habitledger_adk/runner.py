@@ -176,6 +176,7 @@ def create_runner(
             extra={"user_id": user_id, "session_id": session_id},
         )
     except Exception:
+        logger.info("Session not found, creating new one")
         # Session doesn't exist, create new one
         session = session_service.create_session_sync(
             session_id=session_id,
