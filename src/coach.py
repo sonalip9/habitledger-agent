@@ -14,7 +14,7 @@ from typing import Any
 
 from .behaviour_engine import analyse_behaviour, explain_principle
 from .config import setup_logging
-from .memory import UserMemory
+from .memory import MAX_CONVERSATION_CONTEXT_LENGTH, UserMemory
 
 logger = logging.getLogger(__name__)
 
@@ -304,8 +304,8 @@ Generate a supportive, actionable coaching response. Use the behaviour_db_tool i
             response_text = "".join(final_response_parts)
             duration_ms = int((time.time() - start_time) * 1000)
             user_input_truncated = (
-                prompt_context.get("user_input", "")[:200]
-                if len(prompt_context.get("user_input", "")) > 200
+                prompt_context.get("user_input", "")[:MAX_CONVERSATION_CONTEXT_LENGTH]
+                if len(prompt_context.get("user_input", "")) > MAX_CONVERSATION_CONTEXT_LENGTH
                 else prompt_context.get("user_input", "")
             )
 

@@ -17,6 +17,9 @@ from typing import Any, Optional
 # Module-level logger for consistent logging across all functions
 logger = logging.getLogger(__name__)
 
+# Maximum character length for truncating conversation content in context building
+MAX_CONVERSATION_CONTEXT_LENGTH = 200
+
 
 class UserProfile:
     """
@@ -505,7 +508,7 @@ class UserMemory:
 
         for turn in recent_turns:
             role = turn.get("role", "unknown").capitalize()
-            content = turn.get("content", "")[:200]  # Truncate long messages
+            content = turn.get("content", "")[:MAX_CONVERSATION_CONTEXT_LENGTH]
             context_parts.append(f"{role}: {content}")
 
         return "\n".join(context_parts)

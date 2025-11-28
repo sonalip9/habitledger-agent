@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from src.behaviour_engine import analyse_behaviour
 from src.coach import load_behaviour_db, run_once
 from src.config import get_adk_model_name
-from src.memory import UserMemory
+from src.memory import MAX_CONVERSATION_CONTEXT_LENGTH, UserMemory
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +117,7 @@ def behaviour_db_tool(
     import time
 
     start_time = time.time()
-    user_input_truncated = user_input[:200] if len(user_input) > 200 else user_input
+    user_input_truncated = user_input[:MAX_CONVERSATION_CONTEXT_LENGTH] if len(user_input) > MAX_CONVERSATION_CONTEXT_LENGTH else user_input
 
     try:
         memory, behaviour_db = _ensure_initialized()
