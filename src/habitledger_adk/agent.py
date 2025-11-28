@@ -13,6 +13,7 @@ session services (DatabaseSessionService).
 
 import logging
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -114,7 +115,6 @@ def behaviour_db_tool(
         >>> print(result["detected_principle_id"])
         friction_increase
     """
-    import time
 
     start_time = time.time()
     user_input_truncated = user_input[:MAX_CONVERSATION_CONTEXT_LENGTH] if len(user_input) > MAX_CONVERSATION_CONTEXT_LENGTH else user_input

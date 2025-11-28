@@ -7,18 +7,19 @@ behavioural principles and interventions.
 """
 
 import logging
+import time
 from typing import Any
 
 from google.genai import Client
 from google.genai.types import (
-    GenerateContentConfig,
-    Tool,
     FunctionDeclaration,
+    GenerateContentConfig,
     Schema,
+    Tool,
     Type,
 )
 
-from .config import get_api_key, get_adk_model_name
+from .config import get_adk_model_name, get_api_key
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -133,7 +134,6 @@ def analyse_behaviour_with_llm(
         >>> print(result["detected_principle_id"]) if result else print("Failed")
         friction_increase
     """
-    import time
 
     start_time = time.time()
     user_input_truncated = user_input[:100] if len(user_input) > 100 else user_input

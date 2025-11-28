@@ -9,19 +9,28 @@ behaviour analysis, and response generation.
 
 import json
 import logging
+import time
 from pathlib import Path
 from typing import Any
 
-from .behaviour_engine import analyse_behaviour, explain_principle
-from .config import setup_logging
-from .memory import MAX_CONVERSATION_CONTEXT_LENGTH, UserMemory
+from google.genai import Client
+from google.genai.types import Content, GenerateContentConfig, Part
+
+from src.behaviour_engine import analyse_behaviour, explain_principle
+from src.config import get_adk_model_name, get_api_key, setup_logging
+from src.habitledger_adk.agent import (
+    INSTRUCTION_TEXT,
+    behaviour_db_tool,
+    get_behaviour_db_tool,
+)
+from src.memory import UserMemory
 
 logger = logging.getLogger(__name__)
 
 
 def _generate_clarifying_questions(
     principle_id: str,
-    user_input: str,  # noqa: ARG001
+    _user_input: str,
     behaviour_db: dict[str, Any],
 ) -> str:
     """
@@ -185,21 +194,9 @@ def call_adk_agent(prompt_context: dict[str, Any]) -> str | None:
         >>> if response:
         ...     print(response)
     """
-    import time
-
     start_time = time.time()
 
     try:
-        from google.genai import Client
-        from google.genai.types import GenerateContentConfig, Part, Content
-
-        from .config import get_adk_model_name, get_api_key
-        from .habitledger_adk.agent import (
-            INSTRUCTION_TEXT,
-            get_behaviour_db_tool,
-            behaviour_db_tool,
-        )
-
         # Extract context
         user_input = prompt_context.get("user_input", "")
         analysis_result = prompt_context.get("analysis_result", {})
@@ -311,7 +308,8 @@ Generate a supportive, actionable coaching response. Use the behaviour_db_tool i
             duration_ms = int((time.time() - start_time) * 1000)
             user_input_truncated = (
                 prompt_context.get("user_input", "")[:MAX_CONVERSATION_CONTEXT_LENGTH]
-                if len(prompt_context.get("user_input", "")) > MAX_CONVERSATION_CONTEXT_LENGTH
+                if len(prompt_context.get("user_input", ""))
+                > MAX_CONVERSATION_CONTEXT_LENGTH
                 else prompt_context.get("user_input", "")
             )
 
