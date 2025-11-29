@@ -68,6 +68,30 @@ Instead of offering financial advice, HabitLedger acts as a **behavioural money 
 
 ---
 
+## 🎯 Features Demonstrated
+
+This project demonstrates the key capabilities expected for the Agents Intensive competition:
+
+### Agentic Behavior
+
+- **Multi-turn interactions** — Maintains conversation context across sessions with daily check-ins and weekly reflections
+- **Memory persistence** — Remembers user goals, streaks, struggles, and intervention history across interactions
+- **Autonomous decision-making** — Selects appropriate behavioural principles and interventions based on user context without explicit instructions
+
+### Custom Tools
+
+- **Behaviour Knowledge Base** — `behaviour_principles.json` contains 10 evidence-based behavioural science principles (loss aversion, habit loops, friction reduction, etc.) with 3-5 micro-interventions each
+- **MemoryService** — Stateful user profile management with goals, streaks, struggles, and intervention feedback tracking
+- **Adaptive Weighting** — Adjusts intervention confidence based on historical effectiveness for each user
+
+### Evaluation
+
+- **Formal test suite** — 138 tests covering models, services, behaviour engine, and orchestration
+- **20-scenario evaluation** — Comprehensive demo notebook with detection accuracy and intervention relevance metrics
+- **90%+ accuracy** — LLM-powered principle detection achieves 95% accuracy on test scenarios (see [Evaluation Results](docs/EVALUATION_RESULTS.md))
+
+---
+
 ## 🧠 Core Concepts
 
 HabitLedger uses ideas from:
@@ -91,6 +115,79 @@ These principles are stored in a small internal **behaviour knowledge base**, wh
 ## 🏗️ Architecture & Agent Flow
 
 **This is an agent, not just a one-off LLM call.** HabitLedger operates through a continuous interaction loop that maintains state, uses tools, and adapts over time.
+
+### High-Level Architecture
+
+```mermaid
+graph TB
+    User[User Interface<br/>CLI / Notebook]
+    Coach[Coach Orchestrator<br/>coach.py]
+    Engine[Behaviour Engine<br/>behaviour_engine.py]
+    LLM[LLM Client<br/>llm_client.py]
+    Memory[Memory Manager<br/>memory.py]
+    Service[Memory Service<br/>memory_service.py]
+    DB[(Behaviour DB<br/>JSON)]
+    ADK[ADK Agent<br/>habitledger_adk/]
+    
+    User -->|User Input| Coach
+    Coach -->|Analyze| Engine
+    Coach -->|Read/Write| Memory
+    Coach -->|Optional| ADK
+    
+    Engine -->|LLM Analysis| LLM
+    Engine -->|Query| DB
+    
+    Service -->|Business Logic| Memory
+    
+    ADK -->|Tool Calls| Engine
+    ADK -->|State| Memory
+    
+    LLM -->|API Calls| Gemini[Google Gemini API]
+    
+    Coach -->|Response| User
+    
+    style Coach fill:#e1f5ff
+    style Engine fill:#fff3cd
+    style Memory fill:#d4edda
+    style ADK fill:#f8d7da
+```
+
+### Request Flow
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Coach
+    participant Engine
+    participant LLM
+    participant Memory
+    participant DB
+    
+    User->>Coach: User message
+    Coach->>Memory: Load user context
+    Memory-->>Coach: Goals, streaks, history
+    
+    Coach->>Engine: Analyze behaviour (message + context)
+    
+    alt LLM Available
+        Engine->>LLM: Request analysis
+        LLM->>Gemini: API call
+        Gemini-->>LLM: Principle + reasoning
+        LLM-->>Engine: Structured result
+    else LLM Unavailable
+        Engine->>DB: Keyword matching
+        DB-->>Engine: Matched principles
+    end
+    
+    Engine-->>Coach: Analysis result (principle + interventions)
+    
+    Coach->>Coach: Build response
+    Coach->>Memory: Record interaction
+    
+    Coach-->>User: Coaching response
+```
+
+*See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed component documentation and data model diagrams.*
 
 ### Agent Goal
 
@@ -277,26 +374,49 @@ This continuous, stateful operation distinguishes HabitLedger as a true **agent*
 
 ### 1. Habit Coaching
 
-- Daily check-ins about spending, saving, and budgeting  
-- Weekly reflections on progress and setbacks  
-- Personalised micro-habit suggestions  
-- Explanations of *why* a habit is likely to work
+Daily check-ins, weekly reflections, and personalised micro-habit suggestions with explanations of *why* they work.
+
+**Example Intervention:**
+
+> **User:** "I keep ordering food delivery when I'm stressed after work."  
+> **Agent:** "That sounds like a *habit loop* — stress is your cue, delivery is the routine, and comfort food is the reward. Let's try *substitution*: when you feel the stress cue, try a 5-minute walk before deciding. This breaks the automatic routine while keeping the reward (relaxation)."
 
 ### 2. Behaviour Analysis
 
-- Detects underlying patterns (for example, "end-of-month overspending")  
-- Links user behaviour to behavioural science concepts  
-- Suggests targeted interventions aligned with the detected bias
-- Uses LLM-powered analysis for nuanced understanding of user situations
-- Falls back to keyword-based analysis for reliability
-- Logs all analysis decisions and reasoning for transparency
+Detects underlying patterns and links them to behavioural science concepts using LLM-powered analysis with keyword fallback.
+
+**Example Detection:**
+
+```python
+# User says: "I want to save but end up spending everything by month end"
+AnalysisResult(
+    principle_id="present_bias",
+    principle_name="Present Bias",
+    confidence=0.85,
+    interventions=[
+        "Set up automatic transfer on salary day",
+        "Create a 'spend only' account with limited funds",
+        "Use commitment device: tell someone your goal"
+    ]
+)
+```
 
 ### 3. Memory & Tracking
 
-- Stores user goals (for example, "save a fixed amount each month")  
-- Tracks simple streaks (days you reported sticking to a habit)  
-- Records recurring struggles in free-text form  
-- Generates simple summaries of recent behaviour
+Persistent user state with goals, streaks, struggles, and intervention effectiveness tracking.
+
+**Example Memory State:**
+
+```python
+{
+    "streaks": {
+        "no_food_delivery": {"current": 12, "best": 15, "last_updated": "2024-11-17"}
+    },
+    "intervention_feedback": {
+        "friction_increase": {"successes": 8, "failures": 2, "success_rate": 0.80}
+    }
+}
+```
 
 ### 4. Observability & Logging
 
@@ -346,6 +466,26 @@ Planned structure (you can adjust as needed):
 ├── requirements.txt
 ├── README.md
 └── .env                          # Environment variables (not committed)
+
+---
+
+## ⚡ Quick Start
+
+Get up and running in 3 steps:
+
+```bash
+# 1. Clone & install
+git clone https://github.com/sonalip9/habitledger-agent.git
+cd habitledger-agent && pip install -r requirements.txt
+
+# 2. Set API key
+echo "GOOGLE_API_KEY=your_api_key_here" > .env
+
+# 3. Run demo
+jupyter notebook notebooks/demo.ipynb
+```
+
+For CLI interaction, run: `python -m src.habitledger_adk.runner`
 
 ---
 
@@ -600,3 +740,38 @@ A small evaluation set of user scenarios and expected behaviours will be documen
 ## 🙌 Acknowledgements
 
 HabitLedger was created as part of the **Google × Kaggle Agents Intensive – Capstone Project** and is inspired by work in behavioural economics, habit formation, and personal finance education.
+
+---
+
+## 📋 Competition Submission
+
+### Submission Checklist
+
+- [x] **Repository** — GitHub repository with clean code structure
+- [x] **Demo Notebook** — Interactive `notebooks/demo.ipynb` with 20 test scenarios
+- [x] **Documentation** — Comprehensive README, architecture docs, and observability guide
+- [x] **Evaluation Results** — Formal metrics with 90%+ LLM accuracy documented
+- [x] **Test Suite** — 138 tests covering models, services, engine, and orchestration
+- [x] **Competition Track** — Concierge Agents (financial habit coaching)
+
+### Required Artifacts
+
+| Artifact | Location | Status |
+|----------|----------|--------|
+| Demo Notebook | [`notebooks/demo.ipynb`](notebooks/demo.ipynb) | ✅ Complete |
+| Architecture Docs | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | ✅ Complete |
+| Evaluation Results | [`docs/EVALUATION_RESULTS.md`](docs/EVALUATION_RESULTS.md) | ✅ Complete |
+| Observability Guide | [`docs/OBSERVABILITY.md`](docs/OBSERVABILITY.md) | ✅ Complete |
+| Development Guide | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | ✅ Complete |
+| Submission Summary | [`SUBMISSION.md`](SUBMISSION.md) | ✅ Complete |
+
+### Competition Features Demonstrated
+
+✅ **LLM-powered agents** (Gemini for reasoning/generation)  
+✅ **Multi-agent system** (Coach + Behavior Analysis agents)  
+✅ **Custom tools** (`behaviour_db_tool` as ADK FunctionTool)  
+✅ **Sessions & Memory** (InMemorySessionService + JSON persistence)  
+✅ **Observability** (Structured logging with 10+ event types)  
+✅ **Agent evaluation** (20-scenario test suite with metrics)
+
+**Total: 6/6 required features** (minimum 3 required ✓)
