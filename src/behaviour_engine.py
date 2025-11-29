@@ -338,8 +338,8 @@ def _apply_adaptive_weighting(
 
     # Get historical success rate for this principle
     feedback = user_memory.intervention_feedback[principle_id]
-    success_rate = feedback.get("success_rate", 0.5)
-    total_uses = feedback.get("total", 0)
+    success_rate = feedback.success_rate
+    total_uses = feedback.total
 
     # Only adjust if we have enough data (at least 2 uses)
     # Single interventions don't provide sufficient signal for adaptation
