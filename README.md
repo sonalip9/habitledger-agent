@@ -475,11 +475,12 @@ Get up and running in 3 steps:
 
 ```bash
 # 1. Clone & install
-git clone https://github.com/sonalip9/habitledger-agent.git
+git clone <your-repo-url>
 cd habitledger-agent && pip install -r requirements.txt
 
-# 2. Set API key
-echo "GOOGLE_API_KEY=your_api_key_here" > .env
+# 2. Set API key (copy template and add your key)
+cp .env.example .env
+# Edit .env and add your GOOGLE_API_KEY
 
 # 3. Run demo
 jupyter notebook notebooks/demo.ipynb
