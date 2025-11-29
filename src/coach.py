@@ -720,7 +720,7 @@ def main() -> None:
     """
     # Load environment variables first
     load_env()
-    
+
     # Set up logging
     setup_logging()
 
