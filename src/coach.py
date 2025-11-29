@@ -171,6 +171,10 @@ def _generate_clarifying_questions(
     2. Generates appropriate questions for each principle type
     3. Handles unknown principle_id gracefully (uses default questions)
     4. Response includes expected sections (principle name, questions, encouragement)
+    Note: Tests for this function cannot be added due to a circular import issue
+    between src.coach and src.habitledger_adk.agent modules. The function has been
+    manually verified. Resolve the circular import to enable automated testing.
+    TODO: Fix circular import to allow testing.
 
     Args:
         principle_id: The tentatively detected principle ID.

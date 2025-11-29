@@ -307,12 +307,6 @@ def _apply_adaptive_weighting(
     """
     Apply adaptive weighting based on historical intervention effectiveness.
 
-    TODO: Add test coverage for this function. Tests should verify:
-    1. Confidence remains unchanged when insufficient data exists
-    2. Confidence increases for principles with high success rates
-    3. Confidence decreases for principles with low success rates
-    4. Confidence stays within valid bounds (0.1 to 1.0)
-
     This function adjusts confidence scores based on how well each principle
     has worked for this user in the past. Principles with higher success rates
     get boosted confidence when detected.
@@ -374,13 +368,6 @@ def _calculate_confidence_score(
 ) -> float:
     """
     Calculate confidence score for keyword-based detection.
-
-    TODO: Add test coverage for this function. Tests should verify:
-    1. Correct calculation when all keywords match
-    2. Correct calculation with partial keyword matches
-    3. Memory bonus application (0-2 bonus points adding up to 0.2)
-    4. Maximum cap of 0.75 for keyword-based detection
-    5. Edge case: `total_keywords = 0` returns 0.0 confidence
 
     Args:
         matched_keywords_count: Number of keywords matched.

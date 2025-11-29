@@ -31,12 +31,6 @@ logger = logging.getLogger(__name__)
 MAX_CONVERSATION_CONTEXT_LENGTH = 200
 
 
-# TODO: Add test coverage for UserProfile class:
-#   1. Default initialization with correct default values
-#   2. to_dict() serialization produces correct structure
-#   3. from_dict() deserialization handles missing fields with defaults
-#   4. update_from_interaction() correctly updates engagement level and learning speed
-#   5. State transitions (e.g., "low" → "medium" → "high" engagement)
 class UserProfile:
     """
     Tracks user personality and preferences for adaptive response generation.
@@ -580,12 +574,6 @@ class UserMemory:
         """
         Record the effectiveness of an intervention based on a principle.
 
-        TODO: Add test coverage for this method. Tests should verify:
-        1. Creating new feedback entry for a principle
-        2. Incrementing success/failure counts correctly
-        3. Calculating success_rate accurately (successes / total)
-        4. Multiple feedback recordings accumulate correctly
-
         This enables the agent to learn which principles work best for this user
         and adapt future recommendations accordingly.
 
@@ -624,12 +612,6 @@ class UserMemory:
     ) -> list[tuple[str, float]]:
         """
         Get principles ranked by effectiveness for this user.
-
-        TODO: Add test coverage for this method. Tests should verify:
-        1. Filtering by minimum usage threshold (`min_uses` parameter)
-        2. Correct sorting by success rate (descending)
-        3. Returns empty list when no principles meet threshold
-        4. Returns correct tuples of (principle_id, success_rate)
 
         Args:
             min_uses: Minimum number of times a principle must have been used.
