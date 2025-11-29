@@ -386,16 +386,23 @@ Planned structure (you can adjust as needed):
    # Required: Google API key for LLM-based analysis
    GOOGLE_API_KEY=your_api_key_here
    
-   # Optional: Set the model to use (default: gemini-2.0-flash-exp)
-   GOOGLE_ADK_MODEL=gemini-2.0-flash-exp
+   # Optional: Set the model to use (default: gemini-1.5-flash)
+   # gemini-1.5-flash is recommended for better quota management
+   GOOGLE_ADK_MODEL=gemini-1.5-flash
+   
+   # Optional: Rate limiting between LLM calls (default: 1.0 seconds)
+   # Increase this if you're hitting quota limits on free tier
+   LLM_MIN_CALL_INTERVAL=1.0
    
    # Optional: Set logging level (default: INFO)
    LOG_LEVEL=INFO
    ```
 
-   The agent will use LLM-based analysis when `GOOGLE_API_KEY` is set,
+   **Important:** The agent will use LLM-based analysis when `GOOGLE_API_KEY` is set,
    and automatically fall back to keyword-based analysis if the key is missing
-   or LLM calls fail.
+   or LLM calls fail (e.g., quota exhaustion).
+
+   📚 **See [docs/QUOTA_MANAGEMENT.md](docs/QUOTA_MANAGEMENT.md) for detailed quota management guidance.**
 
 ---
 
