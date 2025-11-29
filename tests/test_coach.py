@@ -7,7 +7,12 @@ session summaries, and interaction with the ADK agent.
 
 import pytest
 
-from src.coach import generate_session_summary, run_once
+from src.coach import (
+    _generate_clarifying_questions,
+    _get_clarifying_questions_for_principle,
+    generate_session_summary,
+    run_once,
+)
 from src.models import ConversationRole
 
 
@@ -159,6 +164,226 @@ class TestGenerateSessionSummary:
         assert any(word in summary.lower() for word in encouraging_words)
 
 
-# NOTE: Tests for _generate_clarifying_questions cannot be added due to a circular import
-# issue in src/coach.py <-> src/habitledger_adk/agent.py. The function has been manually
-# verified to work correctly. To add tests, the circular import must be resolved first.
+class TestGenerateClarifyingQuestions:
+    """Tests for _generate_clarifying_questions function."""
+
+    def test_returns_formatted_response(self, sample_behaviour_db):
+        """Test that function returns properly formatted response with questions."""
+        result = _generate_clarifying_questions(
+            principle_id="loss_aversion",
+            _user_input="I'm worried about my progress",
+            behaviour_db=sample_behaviour_db,
+        )
+
+        assert isinstance(result, str)
+        assert len(result) > 0
+        assert "Let me understand better" in result
+        assert "Can you tell me more about:" in result
+        assert "💡" in result  # Encouragement section
+
+    def test_generates_appropriate_questions_for_loss_aversion(
+        self, sample_behaviour_db
+    ):
+        """Test that loss_aversion principle generates relevant questions."""
+        result = _generate_clarifying_questions(
+            principle_id="loss_aversion",
+            _user_input="I'm worried",
+            behaviour_db=sample_behaviour_db,
+        )
+
+        # Check for loss aversion related keywords
+        assert any(
+            keyword in result.lower()
+            for keyword in ["tracking", "progress", "lose", "goal", "milestone"]
+        )
+
+    def test_generates_appropriate_questions_for_habit_loops(self, sample_behaviour_db):
+        """Test that habit_loops principle generates relevant questions."""
+        result = _generate_clarifying_questions(
+            principle_id="habit_loops",
+            _user_input="I keep doing this",
+            behaviour_db=sample_behaviour_db,
+        )
+
+        # Check for habit loop related keywords
+        assert any(
+            keyword in result.lower()
+            for keyword in ["trigger", "behavior", "pattern", "emotion"]
+        )
+
+    def test_generates_appropriate_questions_for_friction_increase(
+        self, sample_behaviour_db
+    ):
+        """Test that friction_increase principle generates relevant questions."""
+        result = _generate_clarifying_questions(
+            principle_id="friction_increase",
+            _user_input="I can't resist",
+            behaviour_db=sample_behaviour_db,
+        )
+
+        # Check for friction increase related keywords
+        assert any(
+            keyword in result.lower()
+            for keyword in ["easy", "impulsive", "steps", "resist", "urge"]
+        )
+
+    def test_handles_unknown_principle_gracefully(self, sample_behaviour_db):
+        """Test that unknown principle_id uses default questions."""
+        result = _generate_clarifying_questions(
+            principle_id="unknown_principle_xyz",
+            _user_input="I need help",
+            behaviour_db=sample_behaviour_db,
+        )
+
+        assert isinstance(result, str)
+        assert len(result) > 0
+        # Should still have the basic structure
+        assert "Let me understand better" in result
+        assert "Can you tell me more about:" in result
+
+    def test_includes_principle_name_in_response(self, sample_behaviour_db):
+        """Test that response includes the principle name."""
+        result = _generate_clarifying_questions(
+            principle_id="loss_aversion",
+            _user_input="worried",
+            behaviour_db=sample_behaviour_db,
+        )
+
+        # Should mention Loss Aversion (the principle name from the DB)
+        assert "Loss Aversion" in result
+
+    def test_response_has_numbered_questions(self, sample_behaviour_db):
+        """Test that questions are numbered properly."""
+        result = _generate_clarifying_questions(
+            principle_id="habit_loops",
+            _user_input="test",
+            behaviour_db=sample_behaviour_db,
+        )
+
+        # Should have numbered questions
+        assert "1." in result
+        assert "2." in result
+
+    def test_response_includes_encouragement(self, sample_behaviour_db):
+        """Test that response includes encouraging message."""
+        result = _generate_clarifying_questions(
+            principle_id="loss_aversion",
+            _user_input="test",
+            behaviour_db=sample_behaviour_db,
+        )
+
+        # Should include encouragement at the end
+        assert "more details" in result.lower()
+        assert "support" in result.lower()
+
+
+class TestGetClarifyingQuestionsForPrinciple:
+    """Tests for _get_clarifying_questions_for_principle function."""
+
+    def test_returns_list_of_questions(self):
+        """Test that function returns a list of questions."""
+        result = _get_clarifying_questions_for_principle("loss_aversion")
+
+        assert isinstance(result, list)
+        assert len(result) >= 2  # Should have at least 2 questions
+        assert all(isinstance(q, str) for q in result)
+
+    def test_loss_aversion_questions(self):
+        """Test questions for loss_aversion principle."""
+        questions = _get_clarifying_questions_for_principle("loss_aversion")
+
+        assert len(questions) >= 2
+        # Should ask about tracking, progress, or goals
+        combined = " ".join(questions).lower()
+        assert any(
+            keyword in combined
+            for keyword in ["tracking", "progress", "feel", "goal", "milestone"]
+        )
+
+    def test_habit_loops_questions(self):
+        """Test questions for habit_loops principle."""
+        questions = _get_clarifying_questions_for_principle("habit_loops")
+
+        assert len(questions) >= 2
+        combined = " ".join(questions).lower()
+        assert any(
+            keyword in combined
+            for keyword in ["trigger", "behavior", "pattern", "emotion", "notice"]
+        )
+
+    def test_commitment_devices_questions(self):
+        """Test questions for commitment_devices principle."""
+        questions = _get_clarifying_questions_for_principle("commitment_devices")
+
+        assert len(questions) >= 2
+        combined = " ".join(questions).lower()
+        assert any(
+            keyword in combined for keyword in ["tried", "change", "knows", "harder"]
+        )
+
+    def test_temptation_bundling_questions(self):
+        """Test questions for temptation_bundling principle."""
+        questions = _get_clarifying_questions_for_principle("temptation_bundling")
+
+        assert len(questions) >= 2
+        combined = " ".join(questions).lower()
+        assert any(
+            keyword in combined for keyword in ["enjoy", "fun", "chore", "combine"]
+        )
+
+    def test_friction_reduction_questions(self):
+        """Test questions for friction_reduction principle."""
+        questions = _get_clarifying_questions_for_principle("friction_reduction")
+
+        assert len(questions) >= 2
+        combined = " ".join(questions).lower()
+        assert any(
+            keyword in combined
+            for keyword in ["steps", "complicated", "easy", "time-consuming"]
+        )
+
+    def test_friction_increase_questions(self):
+        """Test questions for friction_increase principle."""
+        questions = _get_clarifying_questions_for_principle("friction_increase")
+
+        assert len(questions) >= 2
+        combined = " ".join(questions).lower()
+        assert any(
+            keyword in combined
+            for keyword in ["easy", "impulsive", "steps", "urge", "resist"]
+        )
+
+    def test_default_effect_questions(self):
+        """Test questions for default_effect principle."""
+        questions = _get_clarifying_questions_for_principle("default_effect")
+
+        assert len(questions) >= 2
+        combined = " ".join(questions).lower()
+        assert any(
+            keyword in combined
+            for keyword in ["remember", "manual", "automat", "default"]
+        )
+
+    def test_micro_habits_questions(self):
+        """Test questions for micro_habits principle."""
+        questions = _get_clarifying_questions_for_principle("micro_habits")
+
+        assert len(questions) >= 2
+        combined = " ".join(questions).lower()
+        assert any(
+            keyword in combined
+            for keyword in ["smallest", "tiny", "overwhelming", "version"]
+        )
+
+    def test_unknown_principle_returns_default_questions(self):
+        """Test that unknown principle returns default questions."""
+        questions = _get_clarifying_questions_for_principle("unknown_principle_xyz")
+
+        assert isinstance(questions, list)
+        assert len(questions) >= 2
+        # Should be generic questions
+        combined = " ".join(questions).lower()
+        assert any(
+            keyword in combined
+            for keyword in ["trying", "situation", "achieve", "challenge", "tried"]
+        )

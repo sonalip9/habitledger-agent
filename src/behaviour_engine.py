@@ -15,6 +15,7 @@ from typing import Any
 
 from .llm_client import analyse_behaviour_with_llm
 from .memory import UserMemory
+from .memory_service import MemoryService
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -197,11 +198,13 @@ def _analyse_behaviour_keyword(
 
     # Also check user memory for additional context
     # If user has streaks, loss_aversion might be relevant
-    if user_memory.streaks:
+    active_streaks = MemoryService.get_active_streaks(user_memory)
+    if active_streaks:
         principle_scores["loss_aversion"] = principle_scores.get("loss_aversion", 0) + 1
 
     # If user has many struggles, commitment_devices might help
-    if len(user_memory.struggles) >= 2:
+    recent_struggles = MemoryService.get_recent_struggles(user_memory)
+    if len(recent_struggles) >= 2:
         principle_scores["commitment_devices"] = (
             principle_scores.get("commitment_devices", 0) + 1
         )
@@ -234,9 +237,11 @@ def _analyse_behaviour_keyword(
     total_keywords_for_principle = len(KEYWORD_MAPPINGS.get(best_principle_id, []))
     matched_count = len(matched_triggers)
     memory_bonus = 0
-    if best_principle_id == "loss_aversion" and user_memory.streaks:
+    active_streaks = MemoryService.get_active_streaks(user_memory)
+    if best_principle_id == "loss_aversion" and active_streaks:
         memory_bonus += 1
-    if best_principle_id == "commitment_devices" and len(user_memory.struggles) >= 2:
+    recent_struggles = MemoryService.get_recent_struggles(user_memory)
+    if best_principle_id == "commitment_devices" and len(recent_struggles) >= 2:
         memory_bonus += 1
 
     confidence = _calculate_confidence_score(
@@ -325,15 +330,16 @@ def _apply_adaptive_weighting(
     principle_id = result.get("detected_principle_id")
     base_confidence = result.get("confidence", 0.7)  # Default if not set
 
-    if not principle_id or principle_id not in user_memory.intervention_feedback:
-        # No historical data, return original confidence
+    if not principle_id:
+        # No principle detected, return original confidence
         result["confidence"] = base_confidence
         return result
 
-    # Get historical success rate for this principle
-    feedback = user_memory.intervention_feedback[principle_id]
-    success_rate = feedback.success_rate
-    total_uses = feedback.total
+    # Get historical success rate for this principle using MemoryService
+    success_rate = MemoryService.calculate_principle_effectiveness(
+        user_memory, principle_id
+    )
+    total_uses = MemoryService.get_principle_usage_count(user_memory, principle_id)
 
     # Only adjust if we have enough data (at least 2 uses)
     # Single interventions don't provide sufficient signal for adaptation

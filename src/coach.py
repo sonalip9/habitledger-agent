@@ -22,7 +22,6 @@ from src.memory import MAX_CONVERSATION_CONTEXT_LENGTH, UserMemory
 from src.models import AnalysisResult, BehaviourDatabase
 
 from .config import get_adk_model_name, get_api_key
-from .habitledger_adk.agent import INSTRUCTION_TEXT, get_behaviour_db_tool
 
 logger = logging.getLogger(__name__)
 
@@ -165,16 +164,6 @@ def _generate_clarifying_questions(
 ) -> str:
     """
     Generate clarifying questions when confidence is low.
-
-    TODO: Add test coverage for this function. Tests should verify:
-    1. Returns properly formatted response with questions
-    2. Generates appropriate questions for each principle type
-    3. Handles unknown principle_id gracefully (uses default questions)
-    4. Response includes expected sections (principle name, questions, encouragement)
-    Note: Tests for this function cannot be added due to a circular import issue
-    between src.coach and src.habitledger_adk.agent modules. The function has been
-    manually verified. Resolve the circular import to enable automated testing.
-    TODO: Fix circular import to allow testing.
 
     Args:
         principle_id: The tentatively detected principle ID.
@@ -450,6 +439,9 @@ def call_adk_agent(prompt_context: dict[str, Any]) -> str | None:
     start_time = time.time()
 
     try:
+        # Import here to avoid circular dependency
+        from .habitledger_adk.agent import INSTRUCTION_TEXT, get_behaviour_db_tool
+
         # Build context prompt
         context_prompt = _build_adk_context(prompt_context)
         user_input = prompt_context.get("user_input", "")
@@ -565,7 +557,11 @@ def run_once(
         return response
 
     # Step 3: Build memory summary for context
-    memory_summary = f"Goals: {len(memory.goals)}, Streaks: {len(memory.streaks)}, Recent struggles: {len(memory.struggles)}"
+    from src.memory_service import MemoryService
+
+    active_streaks = MemoryService.get_active_streaks(memory)
+    recent_struggles = MemoryService.get_recent_struggles(memory)
+    memory_summary = f"Goals: {len(memory.goals)}, Streaks: {len(active_streaks)}, Recent struggles: {len(recent_struggles)}"
 
     # Step 4: Try ADK agent for response generation
     prompt_context = {
