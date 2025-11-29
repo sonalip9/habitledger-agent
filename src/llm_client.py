@@ -25,6 +25,134 @@ from .config import get_adk_model_name, get_api_key
 logger = logging.getLogger(__name__)
 
 
+def _build_llm_prompt(
+    user_input: str,
+    user_memory: Any,
+) -> str:
+    """
+    Build the prompt for LLM behaviour analysis.
+
+    Args:
+        user_input: The user's message.
+        user_memory: UserMemory instance.
+
+    Returns:
+        str: Formatted prompt for the LLM.
+    """
+    # Build context from user memory
+    memory_context = _build_memory_context(user_memory)
+
+    # Include recent conversation context
+    conversation_context = ""
+    if hasattr(user_memory, "build_conversation_context"):
+        conversation_context = user_memory.build_conversation_context(num_turns=5)
+
+    # Include user profile for personalization
+    profile_context = ""
+    if hasattr(user_memory, "user_profile") and user_memory.user_profile:
+        profile = user_memory.user_profile
+        profile_context = f"""User Profile:
+- Preferred tone: {profile.preferred_tone}
+- Engagement level: {profile.engagement_level}
+- Learning pace: {profile.learning_speed}"""
+
+    return f"""Analyze the following user situation and identify the most relevant behavioural science principle.
+
+User Input: {user_input}
+
+User Context:
+{memory_context}
+
+{conversation_context}
+
+{profile_context}
+
+Please analyze this situation and use the analyse_behaviour tool to provide:
+1. The most relevant behavioural principle ID
+2. Clear reasoning for your selection
+3. 1-3 specific, actionable intervention suggestions
+4. The key triggers or phrases that led to your selection"""
+
+
+def _parse_llm_response(
+    response: Any,
+    behaviour_db: dict[str, Any],
+) -> dict[str, Any] | None:
+    """
+    Parse the LLM response and extract analysis results.
+
+    Args:
+        response: The LLM response object.
+        behaviour_db: Dictionary containing behavioural principles.
+
+    Returns:
+        dict or None: Analysis result if successful, None otherwise.
+    """
+    if (
+        response.candidates
+        and response.candidates[0].content
+        and response.candidates[0].content.parts
+    ):
+        for part in response.candidates[0].content.parts:
+            if hasattr(part, "function_call") and part.function_call:
+                # Extract the function call arguments
+                args = part.function_call.args
+
+                # Convert to our expected format
+                result = {
+                    "detected_principle_id": args.get("principle_id"),
+                    "reason": args.get("reason", ""),
+                    "intervention_suggestions": list(
+                        args.get("intervention_suggestions", [])
+                    ),
+                    "triggers_matched": list(args.get("triggers_matched", [])),
+                    "source": "adk",
+                    "confidence": 0.85,  # LLM-based detection has higher base confidence
+                }
+
+                return _validate_principle(result, behaviour_db)
+
+    return None
+
+
+def _validate_principle(
+    result: dict[str, Any],
+    behaviour_db: dict[str, Any],
+) -> dict[str, Any] | None:
+    """
+    Validate that the detected principle exists and populate interventions if needed.
+
+    Args:
+        result: The analysis result to validate.
+        behaviour_db: Dictionary containing behavioural principles.
+
+    Returns:
+        dict or None: Validated result or None if invalid.
+    """
+    principles = behaviour_db.get("principles", [])
+
+    # Validate the principle exists in the database
+    if not any(p.get("id") == result["detected_principle_id"] for p in principles):
+        logger.warning(
+            "LLM suggested unknown principle: %s",
+            result["detected_principle_id"],
+        )
+        return None
+
+    # If interventions are empty, get them from the database
+    if not result["intervention_suggestions"]:
+        principle_data = next(
+            (p for p in principles if p.get("id") == result["detected_principle_id"]),
+            None,
+        )
+        if principle_data:
+            result["intervention_suggestions"] = principle_data.get(
+                "interventions", []
+            )[:3]
+
+    return result
+
+
 def _create_behaviour_analysis_tool(behaviour_db: dict[str, Any]) -> Tool:
     """
     Create a tool definition for the LLM to use for behaviour analysis.
@@ -166,40 +294,8 @@ def analyse_behaviour_with_llm(
         # Create the behaviour analysis tool
         analysis_tool = _create_behaviour_analysis_tool(behaviour_db)
 
-        # Build context from user memory
-        memory_context = _build_memory_context(user_memory)
-
-        # Include recent conversation context
-        conversation_context = ""
-        if hasattr(user_memory, "build_conversation_context"):
-            conversation_context = user_memory.build_conversation_context(num_turns=5)
-
-        # Include user profile for personalization
-        profile_context = ""
-        if hasattr(user_memory, "user_profile") and user_memory.user_profile:
-            profile = user_memory.user_profile
-            profile_context = f"""User Profile:
-- Preferred tone: {profile.preferred_tone}
-- Engagement level: {profile.engagement_level}
-- Learning pace: {profile.learning_speed}"""
-
-        # Create prompt for the LLM
-        prompt = f"""Analyze the following user situation and identify the most relevant behavioural science principle.
-
-User Input: {user_input}
-
-User Context:
-{memory_context}
-
-{conversation_context}
-
-{profile_context}
-
-Please analyze this situation and use the analyse_behaviour tool to provide:
-1. The most relevant behavioural principle ID
-2. Clear reasoning for your selection
-3. 1-3 specific, actionable intervention suggestions
-4. The key triggers or phrases that led to your selection"""
+        # Build prompt
+        prompt = _build_llm_prompt(user_input, user_memory)
 
         # Configure the generation
         config = GenerateContentConfig(
@@ -230,84 +326,33 @@ Please analyze this situation and use the analyse_behaviour tool to provide:
             },
         )
 
-        # Extract tool call from response
-        if (
-            response.candidates
-            and response.candidates[0].content
-            and response.candidates[0].content.parts
-        ):
-            for part in response.candidates[0].content.parts:
-                if hasattr(part, "function_call") and part.function_call:
-                    # Extract the function call arguments
-                    args = part.function_call.args
+        # Parse and validate response
+        result = _parse_llm_response(response, behaviour_db)
 
-                    total_duration_ms = int((time.time() - start_time) * 1000)
-
-                    # Log the LLM's decision with full metrics
-                    logger.info(
-                        "LLM analysis successful",
-                        extra={
-                            "event": "llm_analysis_complete",
-                            "principle_id": args.get("principle_id", "unknown"),
-                            "reason": args.get("reason", "N/A")[:150],
-                            "intervention_count": len(
-                                args.get("intervention_suggestions", [])
-                            ),
-                            "triggers_count": len(args.get("triggers_matched", [])),
-                            "total_duration_ms": total_duration_ms,
-                            "source": "adk",
-                        },
-                    )
-
-                    logger.debug(
-                        "LLM detailed results",
-                        extra={
-                            "interventions": args.get("intervention_suggestions", []),
-                            "triggers": args.get("triggers_matched", []),
-                        },
-                    )
-
-                    # Convert to our expected format
-                    result = {
-                        "detected_principle_id": args.get("principle_id"),
-                        "reason": args.get("reason", ""),
-                        "intervention_suggestions": list(
-                            args.get("intervention_suggestions", [])
-                        ),
-                        "triggers_matched": list(args.get("triggers_matched", [])),
-                        "source": "adk",
-                        "confidence": 0.85,  # LLM-based detection has higher base confidence
-                    }
-
-                    # Validate the principle exists in the database
-                    principles = behaviour_db.get("principles", [])
-                    if not any(
-                        p.get("id") == result["detected_principle_id"]
-                        for p in principles
-                    ):
-                        logger.warning(
-                            "LLM suggested unknown principle: %s",
-                            result["detected_principle_id"],
-                        )
-                        return None
-
-                    # If interventions are empty or not specific enough,
-                    # get them from the database
-                    if not result["intervention_suggestions"]:
-                        principle_data = next(
-                            (
-                                p
-                                for p in principles
-                                if p.get("id") == result["detected_principle_id"]
-                            ),
-                            None,
-                        )
-                        if principle_data:
-                            result["intervention_suggestions"] = principle_data.get(
-                                "interventions", []
-                            )[:3]
-
-                    return result
+        if result:
+            total_duration_ms = int((time.time() - start_time) * 1000)
+            logger.info(
+                "LLM analysis successful",
+                extra={
+                    "event": "llm_analysis_complete",
+                    "principle_id": result.get("detected_principle_id", "unknown"),
+                    "reason": result.get("reason", "N/A")[:150],
+                    "intervention_count": len(
+                        result.get("intervention_suggestions", [])
+                    ),
+                    "triggers_count": len(result.get("triggers_matched", [])),
+                    "total_duration_ms": total_duration_ms,
+                    "source": "adk",
+                },
+            )
+            logger.debug(
+                "LLM detailed results",
+                extra={
+                    "interventions": result.get("intervention_suggestions", []),
+                    "triggers": result.get("triggers_matched", []),
+                },
+            )
+            return result
 
         total_duration_ms = int((time.time() - start_time) * 1000)
         logger.warning(
