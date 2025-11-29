@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 def behaviour_db_tool(
-    user_input: str, _session_meta: dict[str, Any] | None = None
+    user_input: str, session_meta: dict[str, Any] | None = None
 ) -> dict[str, Any]:
     """
     Analyze user financial habit input and detect relevant behavioural principle.
@@ -32,7 +32,11 @@ def behaviour_db_tool(
 
     Args:
         user_input: The user's description of their financial habit, struggle, or goal.
-        session_meta: Optional session metadata containing user context (unused for now).
+        session_meta: Optional session metadata containing user context. If provided,
+            should be a dictionary containing ADK session state with "user:memory" key
+            holding serialized UserMemory. When provided, enables personalized analysis
+            using user's goals, streaks, and history. Falls back to minimal memory if
+            not provided or if deserialization fails.
 
     Returns:
         dict: A structured response with:
@@ -52,8 +56,35 @@ def behaviour_db_tool(
         db_path = Path(__file__).parent.parent / "data" / "behaviour_principles.json"
         behaviour_db = load_behaviour_db(str(db_path))
 
-        # Create minimal memory for analysis
-        memory = UserMemory(user_id="adk_tool_user")
+        # Extract UserMemory from session metadata if available
+        memory = None
+        if session_meta:
+            # Try to extract memory from session state (using ADK's "user:memory" key)
+            memory_dict = session_meta.get("user:memory")
+            if memory_dict:
+                try:
+                    memory = UserMemory.from_dict(memory_dict)
+                    logger.debug(
+                        "Loaded UserMemory from session metadata",
+                        extra={
+                            "user_id": memory.user_id,
+                            "goals_count": len(memory.goals),
+                            "active_streaks": sum(
+                                1 for s in memory.streaks.values() if s.current > 0
+                            ),
+                        },
+                    )
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(
+                        "Failed to deserialize UserMemory from session_meta: %s",
+                        str(e),
+                    )
+                    memory = None
+
+        # Fallback: Create minimal memory for analysis if not loaded from session
+        if memory is None:
+            memory = UserMemory(user_id="adk_tool_user")
+            logger.debug("Using minimal UserMemory (no session context provided)")
 
         # Analyze behaviour
         analysis = analyse_behaviour(user_input, memory, behaviour_db)
@@ -140,7 +171,7 @@ def create_behaviour_db_function_tool() -> Tool:
             ),
             "session_meta": Schema(
                 type=Type.OBJECT,
-                description="Optional session metadata with user context",
+                description="Optional session state dict containing user:memory key with UserMemory data for personalized analysis",
             ),
         },
         required=["user_input"],
