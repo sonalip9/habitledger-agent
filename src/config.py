@@ -51,6 +51,7 @@ def get_data_path(filename: str = "behaviour_principles.json") -> str:
     1. /kaggle/input/habitledger-agent/data/ (recommended)
     2. /kaggle/input/habitledger-data/ (legacy)
     3. /kaggle/working/ (embedded data)
+
     Args:
         filename: Name of the data file (default: "behaviour_principles.json").
 
@@ -157,7 +158,9 @@ def get_api_key() -> str:
     # Try Kaggle Secrets first if on Kaggle
     if is_kaggle_environment():
         try:
-            from kaggle_secrets import UserSecretsClient  # type: ignore # pylint: disable=import-error
+            from kaggle_secrets import (
+                UserSecretsClient,  # type: ignore # pylint: disable=import-error
+            )
 
             user_secrets = UserSecretsClient()
             api_key = user_secrets.get_secret("GOOGLE_API_KEY")

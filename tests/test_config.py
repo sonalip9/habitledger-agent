@@ -66,6 +66,58 @@ class TestGetDataPath:
             path = get_data_path()
             assert "behaviour_principles.json" in path
 
+    def test_returns_recommended_kaggle_path_when_exists(self):
+        """Test returns /kaggle/input/habitledger-agent/data/ path when it exists."""
+        with patch.dict(os.environ, {"KAGGLE_KERNEL_RUN_TYPE": "Interactive"}):
+            with patch.object(Path, "exists") as mock_exists:
+                # First path exists (recommended)
+                mock_exists.return_value = True
+                path = get_data_path("behaviour_principles.json")
+                assert path == "/kaggle/input/habitledger-agent/data/behaviour_principles.json"
+
+    def test_returns_legacy_kaggle_path_when_recommended_missing(self):
+        """Test returns legacy path when recommended path doesn't exist."""
+        with patch.dict(os.environ, {"KAGGLE_KERNEL_RUN_TYPE": "Interactive"}):
+            with patch.object(Path, "exists") as mock_exists:
+                # First call (recommended) returns False, second (legacy) returns True
+                mock_exists.side_effect = [False, True]
+                path = get_data_path("behaviour_principles.json")
+                assert path == "/kaggle/input/habitledger-data/behaviour_principles.json"
+
+    def test_returns_working_path_when_other_kaggle_paths_missing(self):
+        """Test returns /kaggle/working/ path when other paths don't exist."""
+        with patch.dict(os.environ, {"KAGGLE_KERNEL_RUN_TYPE": "Interactive"}):
+            with patch.object(Path, "exists") as mock_exists:
+                # First two paths don't exist, third (working) exists
+                mock_exists.side_effect = [False, False, True]
+                path = get_data_path("behaviour_principles.json")
+                assert path == "/kaggle/working/behaviour_principles.json"
+
+    def test_raises_error_when_no_kaggle_path_found(self):
+        """Test raises FileNotFoundError when on Kaggle and no paths exist."""
+        with patch.dict(os.environ, {"KAGGLE_KERNEL_RUN_TYPE": "Interactive"}):
+            with patch.object(Path, "exists") as mock_exists:
+                # All paths don't exist
+                mock_exists.return_value = False
+                with pytest.raises(FileNotFoundError, match="not found in Kaggle environment"):
+                    get_data_path("behaviour_principles.json")
+
+    def test_kaggle_error_mentions_dataset_instructions(self):
+        """Test Kaggle error message mentions dataset attachment instructions."""
+        with patch.dict(os.environ, {"KAGGLE_KERNEL_RUN_TYPE": "Interactive"}):
+            with patch.object(Path, "exists") as mock_exists:
+                mock_exists.return_value = False
+                with pytest.raises(FileNotFoundError, match="habitledger-agent dataset"):
+                    get_data_path("behaviour_principles.json")
+
+    def test_kaggle_error_mentions_instructions_file(self):
+        """Test Kaggle error message mentions KAGGLE_INSTRUCTIONS.md."""
+        with patch.dict(os.environ, {"KAGGLE_KERNEL_RUN_TYPE": "Interactive"}):
+            with patch.object(Path, "exists") as mock_exists:
+                mock_exists.return_value = False
+                with pytest.raises(FileNotFoundError, match="KAGGLE_INSTRUCTIONS.md"):
+                    get_data_path("behaviour_principles.json")
+
 
 class TestGetWorkingDirectory:
     """Tests for get_working_directory function."""
@@ -186,9 +238,8 @@ class TestGetApiKey:
                         UserSecretsClient=MagicMock(return_value=mock_secrets)
                     )
                 },
-            ):
-                with pytest.raises(ValueError, match="not found in Kaggle Secrets"):
-                    get_api_key()
+            ), pytest.raises(ValueError, match="not found in Kaggle Secrets"):
+                get_api_key()
 
     def test_kaggle_error_message_contains_secrets_instructions(self):
         """Test Kaggle error message mentions Add-ons > Secrets setup."""
@@ -205,9 +256,8 @@ class TestGetApiKey:
                         UserSecretsClient=MagicMock(return_value=mock_secrets)
                     )
                 },
-            ):
-                with pytest.raises(ValueError, match=r"Add-ons > Secrets"):
-                    get_api_key()
+            ), pytest.raises(ValueError, match=r"Add-ons > Secrets"):
+                get_api_key()
 
     def test_handles_empty_string_from_kaggle_secrets(self):
         """Test treats empty string from Kaggle Secrets as missing key."""
@@ -224,9 +274,8 @@ class TestGetApiKey:
                         UserSecretsClient=MagicMock(return_value=mock_secrets)
                     )
                 },
-            ):
-                with pytest.raises(ValueError, match="not found in Kaggle Secrets"):
-                    get_api_key()
+            ), pytest.raises(ValueError, match="not found in Kaggle Secrets"):
+                get_api_key()
 
     def test_handles_empty_string_from_env_locally(self):
         """Test treats empty string from environment as missing key."""
