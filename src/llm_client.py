@@ -20,6 +20,7 @@ from google.genai.types import (
 )
 
 from .config import get_adk_model_name, get_api_key
+from .memory import UserMemory
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -228,7 +229,7 @@ def _create_behaviour_analysis_tool(behaviour_db: dict[str, Any]) -> Tool:
 
 def analyse_behaviour_with_llm(
     user_input: str,
-    user_memory: Any,
+    user_memory: UserMemory,
     behaviour_db: dict[str, Any],
 ) -> dict[str, Any] | None:
     """
@@ -381,7 +382,7 @@ def analyse_behaviour_with_llm(
         return None
 
 
-def _build_memory_context(user_memory: Any) -> str:
+def _build_memory_context(user_memory: UserMemory) -> str:
     """
     Build a context string from user memory for the LLM.
 
@@ -395,20 +396,13 @@ def _build_memory_context(user_memory: Any) -> str:
 
     # Add goals
     if hasattr(user_memory, "goals") and user_memory.goals:
-        goals_text = ", ".join(
-            g.get("description", str(g)) if isinstance(g, dict) else str(g)
-            for g in user_memory.goals
-        )
+        goals_text = ", ".join(g.description for g in user_memory.goals)
         context_parts.append(f"Goals: {goals_text}")
 
     # Add streaks
     if hasattr(user_memory, "streaks") and user_memory.streaks:
         streak_count = len(user_memory.streaks)
-        active_streaks = sum(
-            1
-            for s in user_memory.streaks.values()
-            if isinstance(s, dict) and s.get("current", 0) > 0
-        )
+        active_streaks = sum(1 for s in user_memory.streaks.values() if s.current > 0)
         context_parts.append(f"Streaks: {active_streaks}/{streak_count} active")
 
     # Add struggles

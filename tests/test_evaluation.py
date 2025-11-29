@@ -131,7 +131,9 @@ class TestAgentEvaluation:
         - ✓ Response is empathetic and supportive
         """
         # Set up streak context
-        user_memory.streaks = {"no_impulse_buying": {"current": 15, "best": 30}}
+        from src.models import StreakData
+
+        user_memory.streaks = {"no_impulse_buying": StreakData(current=15, best=30)}
 
         user_input = (
             "I'm afraid to check my bank account because I might see I've "
