@@ -3,14 +3,6 @@
 
 This document provides an in-depth architectural overview of the HabitLedger agent system, including system diagrams, data flow, and component interactions.
 
-## Table of Contents
-
-- [System Overview](#system-overview)
-- [Architecture Diagrams](#architecture-diagrams)
-- [Component Details](#component-details)
-- [Data Flow](#data-flow)
-- [Type System](#type-system)
-
 ## System Overview
 
 HabitLedger follows a clean, layered architecture with clear separation of concerns:
@@ -454,9 +446,11 @@ pytest tests/test_models.py -v
 # Required
 GOOGLE_API_KEY=your_api_key
 
-# Optional
-GOOGLE_ADK_MODEL=gemini-2.0-flash-exp
+# Optional (defaults shown)
+GOOGLE_ADK_MODEL=gemini-1.5-flash
+LLM_MIN_CALL_INTERVAL=1.0
 LOG_LEVEL=INFO
+STRUCTURED_LOGGING=false
 ```
 
 ### Scalability

@@ -524,9 +524,11 @@ if principle.id in memory.intervention_feedback:
 # Required for LLM-based analysis
 GOOGLE_API_KEY=your_api_key_here
 
-# Optional configuration
-GOOGLE_ADK_MODEL=gemini-2.0-flash-exp  # Default model
+# Optional configuration (defaults shown)
+GOOGLE_ADK_MODEL=gemini-1.5-flash      # Model to use (recommended for better quotas)
+LLM_MIN_CALL_INTERVAL=1.0              # Rate limiting between LLM calls (seconds)
 LOG_LEVEL=INFO                         # Logging level (DEBUG, INFO, WARNING, ERROR)
+STRUCTURED_LOGGING=false               # Enable structured logging for observability tools
 ```
 
 ### Configuration Loading

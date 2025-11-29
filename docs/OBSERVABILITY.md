@@ -2,21 +2,6 @@
 
 > **Complete Guide**: Observability implementation, structured logging, performance metrics, and production monitoring for HabitLedger Agent
 
-## Table of Contents
-
-- [Overview](#overview)
-- [Implementation Summary](#implementation-summary)
-- [Architecture](#architecture)
-- [Configuration](#configuration)
-- [Log Event Types](#log-event-types)
-- [Key Metrics](#key-metrics)
-- [Usage Examples](#usage-examples)
-- [Log Analysis](#log-analysis-queries)
-- [Integration](#integration-with-observability-tools)
-- [Best Practices](#best-practices)
-- [Troubleshooting](#troubleshooting)
-- [Evaluation](#evaluation--testing)
-
 ## Overview
 
 HabitLedger implements comprehensive observability through structured logging, enabling:

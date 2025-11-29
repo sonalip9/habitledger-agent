@@ -109,8 +109,6 @@ These principles are stored in a small internal **behaviour knowledge base**, wh
 
 **This is an agent, not just a one-off LLM call.** HabitLedger operates through a continuous interaction loop that maintains state, uses tools, and adapts over time.
 
-*See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture diagrams, component documentation, and data model diagrams.*
-
 ### Agent Goal
 
 HabitLedger optimizes for:
@@ -120,175 +118,29 @@ HabitLedger optimizes for:
 - **Self-awareness** – Helping users recognize emotional triggers and biases
 - **Sustainable change** – Small, realistic interventions that compound over time
 
-### System Components
+### System Overview
 
-HabitLedger follows a modular architecture where each component has a clear, single responsibility:
+HabitLedger follows a modular architecture with clear separation of concerns:
 
-**1. `coach.py` – The Orchestrator**
+- **Coach Orchestrator** (`coach.py`) - Central controller managing interaction flow
+- **Behaviour Engine** (`behaviour_engine.py`) - Intelligence layer detecting patterns and generating interventions
+- **LLM Client** (`llm_client.py`) - Gemini integration with fallback mechanisms
+- **Memory Manager** (`memory.py`) - Persistent state across sessions
+- **Knowledge Base** (`behaviour_principles.json`) - Behavioral science principles as tool
+- **ADK Integration** (`habitledger_adk/`) - Google ADK agent implementation
 
-- Central controller that manages the interaction loop
-- Receives user input and coordinates all other components
-- Calls the behaviour engine to analyze input and generate interventions
-- Invokes memory module to read/write state
-- Constructs final responses and manages conversation flow
+The agent maintains persistent memory (goals, streaks, struggles, patterns) and adapts interventions based on historical effectiveness. Each interaction updates state, tracks progress, and provides personalized coaching.
 
-**2. `behaviour_engine.py` – The Intelligence Layer**
-
-- Analyzes user messages to detect patterns, biases, and emotional triggers
-- Uses LLM-based analysis (via Google ADK) as the primary method for nuanced understanding
-- Falls back to keyword-based heuristics when LLM is unavailable or fails
-- Queries the behaviour knowledge base for relevant principles
-- Matches user situations to appropriate behavioural concepts
-- Generates tailored intervention strategies based on context
-- Returns structured recommendations with rationale
-- Logs all tool decisions and reasoning for transparency
-
-**2a. `llm_client.py` – LLM Integration**
-
-- Provides LLM-based behaviour analysis using Google's Gemini models
-- Creates structured tool calls for principle detection
-- Includes memory context in analysis prompts
-- Logs LLM decisions, reasoning, and recommended interventions
-- Validates LLM responses against the behaviour knowledge base
-
-**3. `memory.py` – The State Manager**
-
-- Persists user data across sessions (goals, streaks, struggles, patterns)
-- Provides read/write operations for all state management
-- Tracks temporal information (last check-in, streak dates)
-- Maintains intervention history and user progress
-- Simple file-based or dict-based storage for demo purposes
-
-**4. `behaviour_principles.json` – The Knowledge Base (Tool)**
-
-- Static repository of behavioural science principles
-- Contains concepts like habit loops, loss aversion, commitment devices
-- Provides intervention templates and strategies
-- Maps triggers/situations to recommended approaches
-- Acts as the agent's "external tool" for grounding responses
-
-### Internal State / Memory
-
-The agent maintains persistent memory across interactions:
-
-```python
-{
-  "user_id": "...",
-  "goals": [
-    {"type": "savings", "target": "Save ₹5000/month", "start_date": "2024-11-01"}
-  ],
-  "streaks": {
-    "no_food_delivery": {"current": 12, "best": 15, "last_updated": "2024-11-17"}
-  },
-  "struggles": [
-    {"description": "Impulse spending on weekends", "first_noted": "2024-11-03", "count": 4}
-  ],
-  "interventions": [
-    {"date": "2024-11-10", "type": "friction_increase", "description": "Delete food apps"}
-  ],
-  "last_check_in": "2024-11-16",
-  "behaviour_patterns": {
-    "end_of_month_overspending": {"detected": true, "occurrences": 2}
-  }
-}
-```
-
-### Agent Flow
-
-The complete interaction flow from user input to updated state:
-
-```text
-┌─────────────┐
-│    USER     │
-│   Input     │
-└──────┬──────┘
-       │
-       ▼
-┌─────────────────────────────────────────────────────────┐
-│                      COACH.PY                           │
-│                   (Orchestrator)                        │
-│                                                         │
-│  1. Receives user message                              │
-│  2. Loads current state from Memory                    │
-│  3. Sends (message + context) to Behaviour Engine      │
-│  4. Receives intervention plan                         │
-│  5. Formats response with explanation                  │
-│  6. Updates Memory with new data                       │
-│  7. Returns response to user                           │
-└───┬────────────────────────────────┬──────────────────┘
-    │                                │
-    ▼                                ▼
-┌──────────────────┐         ┌──────────────────┐
-│  MEMORY.PY       │         │ BEHAVIOUR_       │
-│  (State Manager) │         │ ENGINE.PY        │
-│                  │         │ (Intelligence)   │
-│ • Read state     │         │                  │
-│ • Write state    │         │ • Analyze input  │
-│ • Track streaks  │         │ • Detect pattern │
-│ • Store history  │         │ • Query KB       │
-└──────────────────┘         │ • Generate plan  │
-                             └────────┬─────────┘
-                                      │
-                                      ▼
-                             ┌──────────────────┐
-                             │ behaviour_       │
-                             │ principles.json  │
-                             │ (Knowledge Base) │
-                             │                  │
-                             │ • Habit loops    │
-                             │ • Loss aversion  │
-                             │ • Friction tactics│
-                             │ • Micro-habits   │
-                             └──────────────────┘
-```
-
-### Autonomy & Multi-Step Behavior
+### Multi-Step Autonomy
 
 HabitLedger demonstrates true agent autonomy through:
 
-#### 1. Multi-step Progress Tracking
+- **Progress Tracking**: Time-based check-ins and follow-ups on interventions
+- **Adaptive Recommendations**: Adjusts strategies based on user feedback
+- **Pattern Recognition**: Detects recurring triggers and anticipates high-risk situations
+- **Multi-Day Journeys**: Breaks goals into trackable micro-habits with celebration of wins
 
-- Initiates check-ins based on time elapsed
-- Proactively asks about specific goals or struggles
-- Follows up on previously suggested interventions
-
-#### 2. Adaptive Interventions
-
-- Adjusts recommendations based on what worked/didn't work
-- Escalates or de-escalates strategies based on user progress
-- Recognizes when to switch behavioral approaches
-
-#### 3. Pattern Recognition & Anticipation
-
-- Detects recurring patterns (e.g., "weekend spending spikes")
-- Anticipates high-risk situations (e.g., "end of month approaching")
-- Proactively suggests preventive interventions
-
-#### 4. Guided Multi-Day Journeys
-
-- Breaks long-term goals into weekly/daily micro-habits
-- Celebrates small wins to maintain motivation
-- Adjusts timeline and difficulty based on user feedback
-
-**Example multi-day flow:**
-
-```text
-Day 1:  User sets goal → Agent creates habit plan
-Day 3:  Agent checks in → User reports success → Agent reinforces
-Day 7:  Agent detects struggle → Suggests friction-reduction strategy
-Day 10: Agent follows up → User confirms improvement → Updates memory
-Day 14: Weekly reflection → Agent summarizes progress and patterns
-```
-
-### Key Design Principles
-
-- **Separation of Concerns**: Each module has a single, well-defined purpose
-- **Stateful Operations**: Memory persists across sessions for continuous coaching
-- **Modular & Testable**: Components can be tested independently
-- **Tool Usage**: Knowledge base acts as external tool (similar to RAG pattern)
-- **Agentic Behavior**: Loop continues over multiple interactions with adaptive responses
-
-This continuous, stateful operation distinguishes HabitLedger as a true **agent** rather than a simple chatbot
+**📚 For detailed architecture diagrams, component interactions, data flow, and type system documentation, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**
 
 ---
 
@@ -369,7 +221,8 @@ Persistent user state with goals, streaks, struggles, and intervention effective
 
 Planned structure (you can adjust as needed):
 
-.
+```text
+habitledger/
 ├── src/
 │   ├── coach.py                  # Core agent logic & interaction flow
 │   ├── memory.py                 # Simple memory and persistence utilities
@@ -388,6 +241,7 @@ Planned structure (you can adjust as needed):
 ├── requirements.txt
 ├── README.md
 └── .env                          # Environment variables (not committed)
+```
 
 ---
 
@@ -436,6 +290,9 @@ Planned structure (you can adjust as needed):
    
    # Optional: Set logging level (default: INFO)
    LOG_LEVEL=INFO
+   
+   # Optional: Enable structured logging for observability tools (default: false)
+   STRUCTURED_LOGGING=false
    ```
 
    **Important:** The agent will use LLM-based analysis when `GOOGLE_API_KEY` is set,
@@ -448,7 +305,7 @@ Planned structure (you can adjust as needed):
 
 ## 🧭 Competition Track & Scoring Mapping
 
-### **Track Selected: Concierge Agents**
+**Track Selected: Concierge Agents**
 
 This track covers agents designed to help individuals manage and improve aspects of their personal lives  
 —for example: travel planning, meal prep, shopping automation, habit-building, or other daily routines.
@@ -461,30 +318,6 @@ This track covers agents designed to help individuals manage and improve aspects
 - and improve everyday financial decision-making.
 
 It behaves like a personalised **financial habit concierge** that guides, nudges, and adapts to the user over time.
-
----
-
-### 🏆 How HabitLedger Meets the Competition Scoring Criteria
-
-| Criterion | How HabitLedger satisfies it |
-| ---------- | ------------------------------- |
-| **Problem Relevance** | Addresses the widespread issue of inconsistent financial habits and impulsive spending — a major everyday productivity barrier. |
-| **Agentic Design** | Maintains user memory (goals, streaks), uses a behaviour-principles knowledge base as a “tool”, performs multi-turn reasoning and adaptive interactions. |
-| **Technical Execution** | Modular Python structure (`coach.py`, `behaviour_engine.py`, `memory.py`), documented code, single-purpose functions, DRY, clean commits. |
-| **User Experience & Novelty** | Provides personalised interventions grounded in behavioural science, making the agent feel like a real habit coach rather than a generic chatbot. |
-| **Evaluation & Impact** | Includes structured test scenarios (missed SIP, impulsive spend, budgeting challenge) and measures progress via streaks, goal tracking, and behaviour patterns. |
-
----
-
-### 🎯 Awards Positioning Strategy
-
-- HabitLedger aims for awards in **Concierge Agent excellence** by demonstrating:
-  - long-term interaction loops,
-  - adaptive behaviour,
-  - meaningful improvements to daily life (financial habits),
-  - clarity and structure in user guidance.
-- The demo notebook presents clear user journeys and behaviour-change processes.
-- The storytelling and architecture highlight HabitLedger as a true **agent** — not just an LLM wrapper.
 
 ---
 
@@ -541,9 +374,19 @@ The notebook demonstrates:
 
 ---
 
-## 🧪 Evaluation
+## 🧪 Evaluation of the Agent
 
 HabitLedger includes a comprehensive formal evaluation suite with **14 tests** covering **13 scenarios** across all **8 behavioral principles**.
+
+### Evaluation Criteria
+
+HabitLedger can be evaluated on:
+
+- **Clarity** – Are the recommendations easy to understand?
+- **Relevance** – Do the suggestions match the user's described situation?
+- **Behaviour grounding** – Does the agent correctly connect situations to behavioural principles?
+- **Actionability** – Are the suggested actions small, realistic, and actionable?
+- **Consistency** – Does the agent remember and reuse user goals and struggles within a session?
 
 ### Key Metrics (Keyword Fallback Mode)
 
@@ -590,23 +433,6 @@ pytest tests/test_evaluation.py::TestLatencyBenchmarks -v -s
 ```
 
 For full evaluation methodology and results, see [docs/EVALUATION_RESULTS.md](docs/EVALUATION_RESULTS.md).
-
-### Evaluation Criteria
-
-HabitLedger can be evaluated on:
-
-- **Clarity** – Are the recommendations easy to understand?
-- **Relevance** – Do the suggestions match the user's described situation?
-- **Behaviour grounding** – Does the agent correctly connect situations to behavioural principles?
-- **Actionability** – Are the suggested actions small, realistic, and actionable?
-- **Consistency** – Does the agent remember and reuse user goals and struggles within a session?
-
-## ⚠️ Limitations
-
-- This project does **not** provide personalised financial, legal, or tax advice.  
-- Behaviour classification may be imperfect or approximate.  
-- The agent is not a substitute for therapy, counselling, or professional financial planning.  
-- Memory is local to the current environment; it does not sync across devices or users.  
 
 ---
 
@@ -662,6 +488,14 @@ HabitLedger can be evaluated on:
 - [ ] **Session recovery**: Enable users to resume conversations across devices and time periods
 - [ ] **Historical analytics**: Store long-term user data for trend analysis and personalized insights
 - [ ] **Multi-user support**: Add user authentication and isolation for production deployment
+
+---
+
+## ⚠️ Disclaimer
+
+- This project does **not** provide personalised financial, legal, or tax advice.  
+- Behaviour classification may be imperfect or approximate.  
+- The agent is not a substitute for therapy, counselling, or professional financial planning.  
 
 ---
 

@@ -1,6 +1,8 @@
 # HabitLedger: Your Personal Behavioral Money Coach
 
+**Competition:** Agents Intensive – Capstone Project (Kaggle)  
 **Track:** Concierge Agents  
+**Team:** Solo (Sonali Parekh)  
 **Repository:** <https://github.com/sonalip9/habitledger-agent>  
 **Demo:** `notebooks/demo.ipynb`
 

@@ -2,15 +2,6 @@
 
 This guide covers setup, development workflows, testing, and migration guidelines for HabitLedger contributors and users upgrading from older versions.
 
-## Table of Contents
-
-- [Development Setup](#development-setup)
-- [Project Structure](#project-structure)
-- [Development Workflow](#development-workflow)
-- [Testing](#testing)
-- [Migration Guide](#migration-guide)
-- [Contributing](#contributing)
-
 ## Development Setup
 
 ### Prerequisites
@@ -55,9 +46,11 @@ This guide covers setup, development workflows, testing, and migration guideline
     # Required for LLM-based analysis
     GOOGLE_API_KEY=your_api_key_here
 
-    # Optional configuration
-    GOOGLE_ADK_MODEL=gemini-2.0-flash-exp
+    # Optional configuration (defaults shown)
+    GOOGLE_ADK_MODEL=gemini-1.5-flash
+    LLM_MIN_CALL_INTERVAL=1.0
     LOG_LEVEL=INFO
+    STRUCTURED_LOGGING=false
     ```
 
 5. **Verify installation**
@@ -280,191 +273,6 @@ def custom_fixture():
 2. **Integration Tests**: Test component interactions
 3. **End-to-End Tests**: Test complete user flows
 4. **Regression Tests**: Prevent known bugs from reappearing
-
-## Migration Guide
-
-### Breaking Changes in Latest Version
-
-The latest version introduces **typed domain models** and **refactored architecture**. If you have existing user data or are upgrading from an older version, follow this migration guide.
-
-### Changes Overview
-
-1. **Typed Models**: Goals, streaks, struggles, etc. are now strongly-typed dataclasses
-2. **Memory Service**: Business logic extracted from UserMemory class
-3. **Decomposed Functions**: Large functions split into smaller helpers
-4. **Updated Imports**: Module imports may have changed
-
-### Migrating UserMemory Data
-
-#### Old Format (dict-based)
-
-```json
-{
-  "user_id": "user123",
-  "goals": [
-    {"description": "Save money", "target": "₹5000"}
-  ],
-  "streaks": {
-    "no_delivery": {"current": 5, "best": 10, "last_updated": "2024-01-01"}
-  }
-}
-```
-
-#### New Format (type-safe)
-
-The new format is **backward compatible**! The `UserMemory.from_dict()` method automatically converts old dict-based data to typed models.
-
-**No manual migration needed** for data files. Simply load them with:
-
-```python
-from src.memory import UserMemory
-
-memory = UserMemory.load_from_file("path/to/user_data.json")
-# Old format automatically converted to new typed models
-```
-
-### Code Migration
-
-#### Updating Code that Uses Goals
-
-**Old:**
-
-```python
-memory.goals.append({"description": "Save money", "target": "₹5000"})
-goal_desc = memory.goals[0]["description"]
-```
-
-**New:**
-
-```python
-from src.models import Goal
-
-memory.goals.append(Goal(description="Save money", target="₹5000"))
-goal_desc = memory.goals[0].description
-```
-
-#### Updating Code that Uses Streaks
-
-**Old:**
-
-```python
-memory.streaks["no_delivery"] = {
-    "current": 5,
-    "best": 10,
-    "last_updated": "2024-01-01"
-}
-current = memory.streaks["no_delivery"]["current"]
-```
-
-**New:**
-
-```python
-from src.models import StreakData
-
-memory.streaks["no_delivery"] = StreakData(
-    current=5,
-    best=10,
-    last_updated="2024-01-01"
-)
-current = memory.streaks["no_delivery"].current
-```
-
-#### Updating Code that Uses Conversation History
-
-**Old:**
-
-```python
-memory.conversation_history.append({
-    "role": "user",
-    "content": "I need help",
-    "timestamp": "2024-01-01"
-})
-```
-
-**New:**
-
-```python
-memory.add_conversation_turn("user", "I need help")
-# Timestamp automatically added, role validated
-```
-
-### Import Changes
-
-Some imports have been reorganized:
-
-**Old:**
-
-```python
-from src.coach import load_behaviour_db
-```
-
-**New:**
-
-```python
-from src.behaviour_engine import load_behaviour_db
-```
-
-### Using Memory Service
-
-Business logic for memory operations has been extracted:
-
-**Old:**
-
-```python
-# Direct manipulation
-memory.intervention_feedback["principle_id"] = {...}
-```
-
-**New:**
-
-```python
-from src.memory_service import MemoryService
-
-MemoryService.record_feedback(memory, "principle_id", success=True)
-```
-
-### Testing Your Migration
-
-1. **Backup your data**
-
-    ```bash
-    cp data/user_memory.json data/user_memory.json.backup
-    ```
-
-2. **Run migration test**
-
-    ```python
-    from src.memory import UserMemory
-
-    # Load old format
-    memory = UserMemory.load_from_file("data/user_memory.json")
-
-    # Verify conversion
-    print(f"Goals: {len(memory.goals)}")
-    print(f"Streaks: {len(memory.streaks)}")
-
-    # Save in new format
-    memory.save_to_file("data/user_memory_migrated.json")
-    ```
-
-3. **Run test suite**
-
-    ```bash
-    pytest tests/ -v
-    ```
-
-### Rollback Plan
-
-If you encounter issues:
-
-1. Restore backup data files
-2. Check out previous version:
-
-    ```bash
-    git checkout v1.0.0  # Replace with your previous version
-    ```
-
-3. Report issues on GitHub
 
 ## Contributing
 
