@@ -7,6 +7,7 @@ behavioural principles and interventions.
 """
 
 import logging
+import os
 import time
 from typing import Any
 
@@ -24,6 +25,12 @@ from .memory import UserMemory
 
 # Set up logging
 logger = logging.getLogger(__name__)
+
+# Rate limiting configuration
+_last_llm_call_time = 0.0
+_MIN_CALL_INTERVAL = float(
+    os.getenv("LLM_MIN_CALL_INTERVAL", "1.0")
+)  # seconds between calls
 
 
 def _build_llm_prompt(
@@ -240,6 +247,8 @@ def analyse_behaviour_with_llm(
     understanding of context and nuance to make better recommendations than
     keyword-based matching alone.
 
+    Implements rate limiting to prevent API quota exhaustion.
+
     Args:
         user_input: The user's message or description of their behaviour/struggle.
         user_memory: UserMemory instance containing user's goals, streaks, and history.
@@ -263,8 +272,16 @@ def analyse_behaviour_with_llm(
         >>> print(result["detected_principle_id"]) if result else print("Failed")
         friction_increase
     """
+    # Rate limiting to prevent quota exhaustion
+    global _last_llm_call_time
+    elapsed = time.time() - _last_llm_call_time
+    if elapsed < _MIN_CALL_INTERVAL:
+        sleep_time = _MIN_CALL_INTERVAL - elapsed
+        logger.debug("Rate limiting: sleeping %.2fs", sleep_time)
+        time.sleep(sleep_time)
 
     start_time = time.time()
+    _last_llm_call_time = start_time
     user_input_truncated = user_input[:100] if len(user_input) > 100 else user_input
 
     logger.info(
@@ -366,19 +383,32 @@ def analyse_behaviour_with_llm(
         )
         return None
 
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         total_duration_ms = int((time.time() - start_time) * 1000)
-        logger.error(
-            "LLM analysis failed: %s",
-            str(e),
-            extra={
-                "event": "llm_analysis_error",
-                "error_type": type(e).__name__,
-                "error_message": str(e),
-                "duration_ms": total_duration_ms,
-            },
-            exc_info=True,
-        )
+        error_msg = str(e)
+
+        # Special handling for quota errors
+        if "RESOURCE_EXHAUSTED" in error_msg or "quota" in error_msg.lower():
+            logger.warning(
+                "LLM quota exceeded - falling back to keyword matching",
+                extra={
+                    "event": "llm_quota_exceeded",
+                    "error_message": error_msg[:200],
+                    "duration_ms": total_duration_ms,
+                },
+            )
+        else:
+            logger.error(
+                "LLM analysis failed: %s",
+                error_msg,
+                extra={
+                    "event": "llm_analysis_error",
+                    "error_type": type(e).__name__,
+                    "error_message": error_msg,
+                    "duration_ms": total_duration_ms,
+                },
+                exc_info=True,
+            )
         return None
 
 
