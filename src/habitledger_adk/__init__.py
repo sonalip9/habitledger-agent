@@ -6,7 +6,7 @@ for HabitLedger, enabling the behavioural money coach to run as an LLM-powered
 agent with custom tools and session management.
 """
 
-from .agent import habitledger_coach_tool, get_root_agent
+from .agent import get_root_agent, habitledger_coach_tool
 from .runner import run_cli
 
 __all__ = [

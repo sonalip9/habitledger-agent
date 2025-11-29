@@ -18,7 +18,7 @@ from src.models import Goal, StreakData, Struggle
 def get_test_behaviour_db():
     """Load the actual behaviour database for testing."""
     db_path = Path(__file__).parent.parent / "data" / "behaviour_principles.json"
-    with open(db_path, "r", encoding="utf-8") as f:
+    with open(db_path, encoding="utf-8") as f:
         return json.load(f)
 
 

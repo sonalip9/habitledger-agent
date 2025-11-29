@@ -71,7 +71,7 @@ def sample_behaviour_db() -> dict:
 def sample_behaviour_database(
     sample_behaviour_db: dict,  # noqa: R504  # Suppress linter warning about fixture parameter typing; pytest injects fixtures by name, and type hints are correct here.
 ) -> BehaviourDatabase:
-    """Create a typed BehaviourDatabase instance."""
+    """Create a typed BehaviourDatabase instance from sample_behaviour_db fixture."""
     return BehaviourDatabase.from_dict(sample_behaviour_db)
 
 

@@ -11,7 +11,7 @@ performance assessment and are documented in the project writeup.
 
 import json
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 
@@ -24,10 +24,10 @@ from src.models import Goal
 load_env()
 
 
-def get_test_behaviour_db() -> Dict[str, Any]:
+def get_test_behaviour_db() -> dict[str, Any]:
     """Load the behaviour principles database for testing."""
     db_path = Path(__file__).parent.parent / "data" / "behaviour_principles.json"
-    with open(db_path, "r", encoding="utf-8") as f:
+    with open(db_path, encoding="utf-8") as f:
         return json.load(f)
 
 

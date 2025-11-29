@@ -270,7 +270,7 @@ def run_cli() -> None:
                 # Sync memory to agent's global state before tool execution
                 # This ensures the tool operates on the session memory
                 if user_memory:
-                    agent_module._user_memory = user_memory
+                    agent_module.set_user_memory(user_memory)
 
                 # Generate response with tool calling
                 config = GenerateContentConfig(
@@ -323,9 +323,10 @@ def run_cli() -> None:
                 # For now, we rely on conversation_history in UserMemory for tracking
 
                 # Retrieve updated memory from agent's global state after tool execution
-                # The tool modifies the global _user_memory, so we need to sync it back
-                if agent_module._user_memory:
-                    user_memory = agent_module._user_memory
+                # The tool modifies the global user memory, so we need to sync it back
+                updated_memory = agent_module.get_user_memory()
+                if updated_memory:
+                    user_memory = updated_memory
                     save_memory_to_session(session, user_memory)
 
                     # Increment conversation counter

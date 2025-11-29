@@ -19,10 +19,20 @@ from google.genai import Client
 
 from src.behaviour_engine import analyse_behaviour, load_behaviour_db
 from src.coach import run_once
-from src.config import get_adk_model_name
 from src.memory import UserMemory
 
 logger = logging.getLogger(__name__)
+
+
+def get_user_memory() -> UserMemory | None:
+    """Get the current user memory from global state."""
+    return _user_memory
+
+
+def set_user_memory(memory: UserMemory) -> None:
+    """Set the user memory in global state."""
+    global _user_memory  # noqa: PLW0603
+    _user_memory = memory
 
 
 class HabitLedgerAgent:
@@ -133,18 +143,12 @@ def habitledger_coach_tool(user_input: str) -> dict[str, str]:
         return {"response": f"Error processing request: {str(e)}", "status": "error"}
 
 
-def create_root_agent(
-    model_name: str = "gemini-2.0-flash-exp",
-) -> Client:  # noqa: ARG001
+def create_root_agent() -> Client:
     """
     Create and configure the HabitLedger root agent using Google ADK.
 
     This function initializes a Google GenAI client configured as the
     HabitLedger behavioural money coach agent with the custom coaching tool.
-
-    Args:
-        model_name: The model to use for the agent (default: "gemini-2.0-flash-exp")
-                    Reserved for future use when configuring model-specific settings.
 
     Returns:
         Client: Configured Google GenAI client acting as the HabitLedger agent
@@ -174,5 +178,5 @@ def get_root_agent() -> Client:
     """
     global _root_agent  # noqa: PLW0603
     if _root_agent is None:
-        _root_agent = create_root_agent(model_name=get_adk_model_name())
+        _root_agent = create_root_agent()
     return _root_agent

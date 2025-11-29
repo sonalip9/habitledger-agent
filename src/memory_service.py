@@ -9,7 +9,7 @@ analyzing memory patterns.
 from typing import Any
 
 from .memory import UserMemory
-from .models import Struggle, StreakData
+from .models import StreakData, Struggle
 
 
 class MemoryService:

@@ -15,7 +15,6 @@ from google.genai.types import FunctionDeclaration, Schema, Tool, Type
 from src.behaviour_engine import analyse_behaviour, load_behaviour_db
 from src.memory import MAX_CONVERSATION_CONTEXT_LENGTH, UserMemory
 
-
 logger = logging.getLogger(__name__)
 
 
