@@ -12,7 +12,6 @@ session services (DatabaseSessionService).
 """
 
 import logging
-import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -20,14 +19,11 @@ from typing import Any
 from google.genai import Client
 from google.genai.types import FunctionDeclaration, Schema, Tool, Type
 
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-
-from src.behaviour_engine import analyse_behaviour
-from src.coach import load_behaviour_db, run_once
+from src.behaviour_engine import analyse_behaviour, load_behaviour_db
+from src.coach import run_once
 from src.config import get_adk_model_name
 from src.memory import MAX_CONVERSATION_CONTEXT_LENGTH, UserMemory
+
 
 logger = logging.getLogger(__name__)
 
@@ -59,14 +55,60 @@ Guidelines:
 
 Always be supportive, understanding, and focused on sustainable habit change."""
 
-# Global state for memory and behaviour DB (single-user demo)
+
+class HabitLedgerAgent:
+    """
+    HabitLedger agent with dependency injection.
+
+    This class provides a stateless agent instance that accepts
+    behaviour database and user memory as dependencies, avoiding
+    global state for better testability and multi-user support.
+    """
+
+    def __init__(self, behaviour_db: dict[str, Any], memory: UserMemory):
+        """
+        Initialize HabitLedger agent with dependencies.
+
+        Args:
+            behaviour_db: Dictionary containing behavioural principles.
+            memory: UserMemory instance for the current user.
+        """
+        self.behaviour_db = behaviour_db
+        self.memory = memory
+
+    def analyse_behaviour(self, user_input: str) -> dict[str, Any]:
+        """
+        Analyze user input using the agent's behaviour database and memory.
+
+        Args:
+            user_input: The user's description of their financial habit situation.
+
+        Returns:
+            dict: Analysis result with detected principle and interventions.
+        """
+        return analyse_behaviour(user_input, self.memory, self.behaviour_db)
+
+    def generate_response(self, user_input: str) -> str:
+        """
+        Generate a coaching response for user input.
+
+        Args:
+            user_input: The user's message.
+
+        Returns:
+            str: Coaching response.
+        """
+        return run_once(user_input, self.memory, self.behaviour_db)
+
+
+# Global state for backward compatibility (single-user demo)
 _behaviour_db: dict[str, Any] | None = None
 _user_memory: UserMemory | None = None
 
 
 def _ensure_initialized() -> tuple[UserMemory, dict[str, Any]]:
     """
-    Ensure behaviour DB and user memory are initialized.
+    Ensure behaviour DB and user memory are initialized (legacy, for backward compatibility).
 
     Returns:
         tuple: (user_memory, behaviour_db)
@@ -80,17 +122,19 @@ def _ensure_initialized() -> tuple[UserMemory, dict[str, Any]]:
         _behaviour_db = load_behaviour_db(str(db_path))
 
     if _user_memory is None:
+        from src.models import Goal
+
         _user_memory = UserMemory(user_id="adk_demo_user")
         _user_memory.goals = [
-            {"description": "Build better financial habits"},
-            {"description": "Control impulse spending"},
+            Goal(description="Build better financial habits"),
+            Goal(description="Control impulse spending"),
         ]
 
     return _user_memory, _behaviour_db
 
 
 def behaviour_db_tool(
-    user_input: str, session_meta: dict[str, Any] | None = None
+    user_input: str, _session_meta: dict[str, Any] | None = None
 ) -> dict[str, Any]:
     """
     Analyze user financial habit input and detect relevant behavioural principle.
@@ -117,7 +161,11 @@ def behaviour_db_tool(
     """
 
     start_time = time.time()
-    user_input_truncated = user_input[:MAX_CONVERSATION_CONTEXT_LENGTH] if len(user_input) > MAX_CONVERSATION_CONTEXT_LENGTH else user_input
+    user_input_truncated = (
+        user_input[:MAX_CONVERSATION_CONTEXT_LENGTH]
+        if len(user_input) > MAX_CONVERSATION_CONTEXT_LENGTH
+        else user_input
+    )
 
     try:
         memory, behaviour_db = _ensure_initialized()
