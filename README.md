@@ -72,23 +72,16 @@ Instead of offering financial advice, HabitLedger acts as a **behavioural money 
 
 This project demonstrates the key capabilities expected for the Agents Intensive competition:
 
-### Agentic Behavior
+✅ **LLM-powered agents** — Gemini models for reasoning and response generation  
+✅ **Multi-agent system** — Coach orchestrator + Behavior Analysis agent  
+✅ **Custom tools** — `behaviour_db_tool` as ADK FunctionTool for knowledge retrieval  
+✅ **Sessions & Memory** — InMemorySessionService + JSON persistence for user state  
+✅ **Observability** — Structured logging with 10+ event types for transparency  
+✅ **Agent evaluation** — 20-scenario test suite with detection accuracy metrics
 
-- **Multi-turn interactions** — Maintains conversation context across sessions with daily check-ins and weekly reflections
-- **Memory persistence** — Remembers user goals, streaks, struggles, and intervention history across interactions
-- **Autonomous decision-making** — Selects appropriate behavioural principles and interventions based on user context without explicit instructions
+**Total: 6/6 required features** (minimum 3 required ✓)
 
-### Custom Tools
-
-- **Behaviour Knowledge Base** — `behaviour_principles.json` contains 10 evidence-based behavioural science principles (loss aversion, habit loops, friction reduction, etc.) with 3-5 micro-interventions each
-- **MemoryService** — Stateful user profile management with goals, streaks, struggles, and intervention feedback tracking
-- **Adaptive Weighting** — Adjusts intervention confidence based on historical effectiveness for each user
-
-### Evaluation
-
-- **Formal test suite** — 138 tests covering models, services, behaviour engine, and orchestration
-- **20-scenario evaluation** — Comprehensive demo notebook with detection accuracy and intervention relevance metrics
-- **90%+ accuracy** — LLM-powered principle detection achieves 95% accuracy on test scenarios (see [Evaluation Results](docs/EVALUATION_RESULTS.md))
+See [Evaluation Results](docs/EVALUATION_RESULTS.md) for detailed metrics and test coverage.
 
 ---
 
@@ -116,78 +109,7 @@ These principles are stored in a small internal **behaviour knowledge base**, wh
 
 **This is an agent, not just a one-off LLM call.** HabitLedger operates through a continuous interaction loop that maintains state, uses tools, and adapts over time.
 
-### High-Level Architecture
-
-```mermaid
-graph TB
-    User[User Interface<br/>CLI / Notebook]
-    Coach[Coach Orchestrator<br/>coach.py]
-    Engine[Behaviour Engine<br/>behaviour_engine.py]
-    LLM[LLM Client<br/>llm_client.py]
-    Memory[Memory Manager<br/>memory.py]
-    Service[Memory Service<br/>memory_service.py]
-    DB[(Behaviour DB<br/>JSON)]
-    ADK[ADK Agent<br/>habitledger_adk/]
-    
-    User -->|User Input| Coach
-    Coach -->|Analyze| Engine
-    Coach -->|Read/Write| Memory
-    Coach -->|Optional| ADK
-    
-    Engine -->|LLM Analysis| LLM
-    Engine -->|Query| DB
-    
-    Service -->|Business Logic| Memory
-    
-    ADK -->|Tool Calls| Engine
-    ADK -->|State| Memory
-    
-    LLM -->|API Calls| Gemini[Google Gemini API]
-    
-    Coach -->|Response| User
-    
-    style Coach fill:#e1f5ff
-    style Engine fill:#fff3cd
-    style Memory fill:#d4edda
-    style ADK fill:#f8d7da
-```
-
-### Request Flow
-
-```mermaid
-sequenceDiagram
-    actor User
-    participant Coach
-    participant Engine
-    participant LLM
-    participant Memory
-    participant DB
-    
-    User->>Coach: User message
-    Coach->>Memory: Load user context
-    Memory-->>Coach: Goals, streaks, history
-    
-    Coach->>Engine: Analyze behaviour (message + context)
-    
-    alt LLM Available
-        Engine->>LLM: Request analysis
-        LLM->>Gemini: API call
-        Gemini-->>LLM: Principle + reasoning
-        LLM-->>Engine: Structured result
-    else LLM Unavailable
-        Engine->>DB: Keyword matching
-        DB-->>Engine: Matched principles
-    end
-    
-    Engine-->>Coach: Analysis result (principle + interventions)
-    
-    Coach->>Coach: Build response
-    Coach->>Memory: Record interaction
-    
-    Coach-->>User: Coaching response
-```
-
-*See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed component documentation and data model diagrams.*
+*See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture diagrams, component documentation, and data model diagrams.*
 
 ### Agent Goal
 
@@ -469,34 +391,13 @@ Planned structure (you can adjust as needed):
 
 ---
 
-## ⚡ Quick Start
-
-Get up and running in 3 steps:
-
-```bash
-# 1. Clone & install
-git clone <your-repo-url>
-cd habitledger-agent && pip install -r requirements.txt
-
-# 2. Set API key (copy template and add your key)
-cp .env.example .env
-# Edit .env and add your GOOGLE_API_KEY
-
-# 3. Run demo
-jupyter notebook notebooks/demo.ipynb
-```
-
-For CLI interaction, run: `python -m src.habitledger_adk.runner`
-
----
-
 ## 🛠️ Installation
 
 1. **Clone the repository**
 
    ```bash
-   git clone <your-repo-url>
-   cd habitledger
+   git clone https://github.com/sonalip9/habitledger-agent.git
+   cd habitledger-agent
    ```
 
 2. **Create and activate a virtual environment**
@@ -512,8 +413,6 @@ For CLI interaction, run: `python -m src.habitledger_adk.runner`
    ```
 
 3. **Install dependencies**
-
-   Once `requirements.txt` is created:
 
    ```bash
    pip install -r requirements.txt
@@ -537,31 +436,6 @@ For CLI interaction, run: `python -m src.habitledger_adk.runner`
    The agent will use LLM-based analysis when `GOOGLE_API_KEY` is set,
    and automatically fall back to keyword-based analysis if the key is missing
    or LLM calls fail.
-
----
-
-## ▶️ Running the Agent
-
-### Option 1: From the Notebook (Recommended for Demo)
-
-1. Open the notebook:
-
-   ```bash
-   jupyter notebook notebooks/demo.ipynb
-   ```
-
-2. Run all cells in order.  
-3. Interact with the agent through the provided input cells.
-
-### Option 2: From the Command Line (Optional)
-
-You can add a simple CLI entry point in `src/coach.py`:
-
-```bash
-python src/coach.py
-```
-
-This can start a simple text-based chat loop with the coach.
 
 ---
 
@@ -741,38 +615,3 @@ A small evaluation set of user scenarios and expected behaviours will be documen
 ## 🙌 Acknowledgements
 
 HabitLedger was created as part of the **Google × Kaggle Agents Intensive – Capstone Project** and is inspired by work in behavioural economics, habit formation, and personal finance education.
-
----
-
-## 📋 Competition Submission
-
-### Submission Checklist
-
-- [x] **Repository** — GitHub repository with clean code structure
-- [x] **Demo Notebook** — Interactive `notebooks/demo.ipynb` with 20 test scenarios
-- [x] **Documentation** — Comprehensive README, architecture docs, and observability guide
-- [x] **Evaluation Results** — Formal metrics with 90%+ LLM accuracy documented
-- [x] **Test Suite** — 138 tests covering models, services, engine, and orchestration
-- [x] **Competition Track** — Concierge Agents (financial habit coaching)
-
-### Required Artifacts
-
-| Artifact | Location | Status |
-|----------|----------|--------|
-| Demo Notebook | [`notebooks/demo.ipynb`](notebooks/demo.ipynb) | ✅ Complete |
-| Architecture Docs | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | ✅ Complete |
-| Evaluation Results | [`docs/EVALUATION_RESULTS.md`](docs/EVALUATION_RESULTS.md) | ✅ Complete |
-| Observability Guide | [`docs/OBSERVABILITY.md`](docs/OBSERVABILITY.md) | ✅ Complete |
-| Development Guide | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | ✅ Complete |
-| Submission Summary | [`SUBMISSION.md`](SUBMISSION.md) | ✅ Complete |
-
-### Competition Features Demonstrated
-
-✅ **LLM-powered agents** (Gemini for reasoning/generation)  
-✅ **Multi-agent system** (Coach + Behavior Analysis agents)  
-✅ **Custom tools** (`behaviour_db_tool` as ADK FunctionTool)  
-✅ **Sessions & Memory** (InMemorySessionService + JSON persistence)  
-✅ **Observability** (Structured logging with 10+ event types)  
-✅ **Agent evaluation** (20-scenario test suite with metrics)
-
-**Total: 6/6 required features** (minimum 3 required ✓)
