@@ -5,15 +5,13 @@ This module tests the main coaching functions including response generation,
 session summaries, and interaction with the ADK agent.
 """
 
-import pytest
-
 from src.coach import (
     _generate_clarifying_questions,
     _get_clarifying_questions_for_principle,
     generate_session_summary,
     run_once,
 )
-from src.models import ConversationRole
+from src.models import BehaviourPattern, ConversationRole
 
 
 class TestRunOnce:
@@ -143,11 +141,12 @@ class TestGenerateSessionSummary:
         # At least one struggle should be mentioned
         assert "overspending" in summary.lower() or "impulse" in summary.lower()
 
-    def test_generate_summary_with_patterns(self, populated_memory):
+    def test_summary_with_behaviour_patterns(self, populated_memory):
         """Test summary generation with behaviour patterns."""
-        # Add a pattern
+        # Add a pattern using typed model
+
         populated_memory.behaviour_patterns = {
-            "end_of_month_overspending": {"occurrences": 3}
+            "end_of_month_overspending": BehaviourPattern(detected=True, occurrences=3)
         }
 
         summary = generate_session_summary(populated_memory)

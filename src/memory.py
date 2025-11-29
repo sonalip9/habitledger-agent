@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from .models import (
+    BehaviourPattern,
     ConversationRole,
     ConversationTurn,
     Goal,
@@ -121,7 +122,7 @@ class UserMemory:
         struggles (list[Struggle]): List of recorded user struggles with dates.
         interventions (list[Intervention]): History of suggested interventions.
         last_check_in (str): ISO format timestamp of last interaction.
-        behaviour_patterns (dict): Detected patterns (e.g., end_of_month_overspending).
+        behaviour_patterns (dict[str, BehaviourPattern]): Detected patterns (e.g., end_of_month_overspending).
         conversation_history (list[ConversationTurn]): Multi-turn conversation log with role, content, timestamp.
         intervention_feedback (dict[str, InterventionFeedback]): Tracks effectiveness of each principle.
         user_profile (UserProfile): Personalization settings for adaptive responses.
@@ -141,7 +142,7 @@ class UserMemory:
         struggles: Optional[list[Struggle]] = None,
         interventions: Optional[list[Intervention]] = None,
         last_check_in: Optional[str] = None,
-        behaviour_patterns: Optional[dict] = None,
+        behaviour_patterns: Optional[dict[str, BehaviourPattern]] = None,
         conversation_history: Optional[list[ConversationTurn]] = None,
         intervention_feedback: Optional[dict[str, InterventionFeedback]] = None,
         user_profile: Optional[UserProfile] = None,
@@ -156,7 +157,7 @@ class UserMemory:
             struggles: List of recorded struggles (default: empty list).
             interventions: History of interventions (default: empty list).
             last_check_in: ISO timestamp of last check-in (default: current time).
-            behaviour_patterns: Detected patterns (default: empty dict).
+            behaviour_patterns: Detected patterns mapped by pattern name (default: empty dict).
             conversation_history: Multi-turn conversation log (default: empty list).
             intervention_feedback: Effectiveness tracking per principle (default: empty dict).
             user_profile: Personalization settings (default: new UserProfile instance).
@@ -198,7 +199,9 @@ class UserMemory:
             "struggles": [s.to_dict() for s in self.struggles],
             "interventions": [i.to_dict() for i in self.interventions],
             "last_check_in": self.last_check_in,
-            "behaviour_patterns": self.behaviour_patterns,
+            "behaviour_patterns": {
+                k: v.to_dict() for k, v in self.behaviour_patterns.items()
+            },
             "conversation_history": [t.to_dict() for t in self.conversation_history],
             "intervention_feedback": {
                 k: v.to_dict() for k, v in self.intervention_feedback.items()
@@ -266,6 +269,13 @@ class UserMemory:
             for k, v in feedback_data.items()
         }
 
+        # Convert behaviour_patterns from dict to BehaviourPattern objects
+        patterns_data = data.get("behaviour_patterns", {})
+        behaviour_patterns = {
+            k: BehaviourPattern.from_dict(v) if isinstance(v, dict) else v
+            for k, v in patterns_data.items()
+        }
+
         return cls(
             user_id=data.get("user_id", "default_user"),
             goals=goals,
@@ -273,7 +283,7 @@ class UserMemory:
             struggles=struggles,
             interventions=interventions,
             last_check_in=data.get("last_check_in"),
-            behaviour_patterns=data.get("behaviour_patterns", {}),
+            behaviour_patterns=behaviour_patterns,
             conversation_history=conversation_history,
             intervention_feedback=intervention_feedback,
             user_profile=user_profile,

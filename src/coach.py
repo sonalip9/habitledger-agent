@@ -664,11 +664,7 @@ def generate_session_summary(memory: UserMemory) -> str:
         summary_parts.append("\n🔍 **Detected Patterns:**\n")
         for pattern_name, pattern_data in memory.behaviour_patterns.items():
             pattern_label = pattern_name.replace("_", " ").title()
-            occurrences = (
-                pattern_data.get("occurrences", 0)
-                if isinstance(pattern_data, dict)
-                else 0
-            )
+            occurrences = pattern_data.occurrences
             summary_parts.append(f"  • {pattern_label} ({occurrences}x)\n")
     else:
         summary_parts.append("\n🔍 **Patterns:** No recurring patterns detected yet.\n")

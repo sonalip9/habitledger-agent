@@ -297,6 +297,32 @@ class BehaviourDatabase(BaseModel):
 
 
 @dataclass
+class BehaviourPattern(BaseModel):
+    """Represents a detected behavioural pattern (e.g., end_of_month_overspending)."""
+
+    detected: bool = False
+    occurrences: int = 0
+    last_detected: str = field(default_factory=lambda: datetime.now().isoformat())
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary representation."""
+        return {
+            "detected": self.detected,
+            "occurrences": self.occurrences,
+            "last_detected": self.last_detected,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "BehaviourPattern":
+        """Create BehaviourPattern from dictionary."""
+        return cls(
+            detected=data.get("detected", False),
+            occurrences=data.get("occurrences", 0),
+            last_detected=data.get("last_detected", datetime.now().isoformat()),
+        )
+
+
+@dataclass
 class AnalysisResult(BaseModel):
     """Result of behaviour analysis."""
 
