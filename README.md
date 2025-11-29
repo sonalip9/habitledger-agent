@@ -544,13 +544,56 @@ A small evaluation set of user scenarios and expected behaviours will be documen
 
 ## 📚 Future Enhancements
 
-Potential improvements:
+### UI/UX Improvements
 
-- Simple web UI using Streamlit or FastAPI  
-- Visualisation of habit streaks and progress  
-- More detailed behaviour taxonomies and interventions  
-- Optional integration with budgeting or expense-tracking tools  
-- Configurable “modes” for different types of users (students, early-career, families)
+- [ ] Simple web UI using Streamlit or FastAPI  
+- [ ] Visualisation of habit streaks and progress  
+- [ ] More detailed behaviour taxonomies and interventions  
+- [ ] Optional integration with budgeting or expense-tracking tools  
+- [ ] Configurable "modes" for different types of users (students, early-career, families)
+- [ ] Improve CLI to be more conversational with clear end outputs (reduce loop-like behavior, ensure interventions are surfaced)
+
+### Additional Testing
+
+- [ ] Add performance benchmarks
+- [ ] Add mutation testing for test quality validation
+
+### Code Improvements
+
+- [ ] Add async support for LLM calls
+- [ ] Implement caching layer for principle lookups
+- [ ] Add rate limiting for API calls
+
+### Documentation (Enhancements)
+
+- [ ] Create video walkthrough of architecture
+- [ ] Add API reference documentation
+- [ ] Create troubleshooting guide
+
+### Architecture Enhancements
+
+#### Multi-Agent System
+
+- [ ] **Create 3 specialized agents** with distinct responsibilities:
+  - **Goal-Setting Agent**: Helps users define SMART financial goals, break them into milestones, and establish initial habit plans
+  - **Recommendation Agent**: Analyzes user context and suggests personalized interventions (simple targets or lifestyle changes for building habits)
+  - **Adherence Agent**: Monitors habit compliance, tracks progress, and provides feedback loop to Recommendation Agent
+- [ ] **Feedback Loop**: Adherence data updates Recommendation Agent's understanding of user personality and mindset, enabling recommendations that align with what users find easier to implement
+- [ ] **Agent Coordination**: Implement orchestration layer to manage handoffs between agents and maintain consistent state
+
+#### Knowledge Base Improvements
+
+- [ ] **Migrate to embedding-based search**: Replace keyword matching in `behaviour_principles.json` with vector embeddings and semantic search
+- [ ] **Implement continuous improvement loop**: Periodically update the knowledge base with validated LLM outputs
+- [ ] **Hybrid fallback strategy**: Use embeddings as primary method with JSON fallback when AI services are unavailable
+- [ ] **Knowledge base versioning**: Track changes to principles over time and A/B test effectiveness
+
+#### Persistence & State Management
+
+- [ ] **Database-backed sessions**: Replace in-memory sessions with persistent database storage (PostgreSQL, SQLite, or MongoDB)
+- [ ] **Session recovery**: Enable users to resume conversations across devices and time periods
+- [ ] **Historical analytics**: Store long-term user data for trend analysis and personalized insights
+- [ ] **Multi-user support**: Add user authentication and isolation for production deployment
 
 ---
 
