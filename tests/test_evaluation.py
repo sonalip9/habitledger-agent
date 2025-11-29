@@ -818,7 +818,7 @@ class TestEvaluationSummary:
 
 
 # =============================================================================
-# Expanded Evaluation Test Suite (12 Scenarios - All 8 Principles)
+# Expanded Evaluation Test Suite (13 Scenarios - All 8 Principles)
 # =============================================================================
 
 
@@ -835,6 +835,7 @@ class TestExpandedEvaluation:
     - default_effect (1 scenario)
     - micro_habits (2 scenarios)
     - temptation_bundling (1 scenario)
+    Total: 13 scenarios (3+2+2+1+1+1+2+1=13)
 
     Metrics collected using the EvaluationMetrics class.
     """
@@ -850,6 +851,11 @@ class TestExpandedEvaluation:
 
         This test evaluates the agent across all 8 behavioral principles
         and collects comprehensive metrics for documentation.
+
+        Note: Latency measurements reflect end-to-end response time (run_once),
+        which includes behavior analysis, response generation, and memory updates.
+        The analysis is run a second time after response generation to collect
+        detection metrics, since run_once() doesn't return the analysis result.
         """
         metrics = EvaluationMetrics()
 
@@ -860,12 +866,14 @@ class TestExpandedEvaluation:
                 Goal(description="Reduce impulse buying"),
             ]
 
-            # Measure latency
+            # Measure latency for the full agent response (end-to-end user experience)
             start_time = time.time()
-            analysis = analyse_behaviour(scenario["input"], memory, behaviour_db)
+            response = run_once(scenario["input"], memory, behaviour_db)
             latency_ms = (time.time() - start_time) * 1000
 
-            response = run_once(scenario["input"], memory, behaviour_db)
+            # Analyze separately to get metrics (note: this runs analysis a second time,
+            # but is necessary since run_once doesn't return the analysis result)
+            analysis = analyse_behaviour(scenario["input"], memory, behaviour_db)
 
             # Create result
             result = ScenarioResult(
@@ -890,8 +898,10 @@ class TestExpandedEvaluation:
         metrics.print_summary()
 
         # Assertions for minimum quality thresholds
-        # The assertion below enforces a minimum acceptable accuracy (25%) for keyword fallback mode,
-        # but observed accuracy is typically much higher (e.g., 84.6% as documented in EVALUATION_RESULTS.md).
+        # Note: The 25% threshold below is the minimum acceptable accuracy for keyword fallback mode.
+        # Actual observed accuracy varies widely depending on test scenarios and improvements to the
+        # keyword matching logic. See EVALUATION_RESULTS.md for current observed performance metrics.
+        # LLM mode typically achieves 80-90%+ accuracy when available.
         assert (
             metrics.total_scenarios == 13
         ), f"Expected 13 scenarios, got {metrics.total_scenarios}"
@@ -1090,8 +1100,9 @@ class TestModeComparison:
         print("=" * 70)
 
         # Keyword mode expectations:
-        # - Lower accuracy (25-60%) but very fast
-        # - Latency should be < 100ms
+        # - Fast performance (target: <100ms latency)
+        # - Accuracy varies depending on scenario match quality (minimum threshold: 25%)
+        # - See EVALUATION_RESULTS.md for current observed accuracy metrics
         assert (
             metrics.avg_latency_ms < 100
         ), f"Keyword mode too slow: {metrics.avg_latency_ms:.1f}ms"

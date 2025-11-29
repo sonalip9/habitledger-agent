@@ -118,6 +118,7 @@ Each intervention is scored on:
 Average intervention quality score: **>40%** threshold met
 
 Interventions consistently include:
+
 - Specific actions (delete, remove, schedule, track)
 - Behavioral keywords (trigger, routine, habit, automatic)
 - Practical steps (app deletion, payment info removal, goal breakdown)
@@ -133,7 +134,7 @@ tests/test_evaluation.py
 ├── EvaluationMetrics (dataclass)
 │   └── Formal metrics collection and calculation
 │
-├── ScenarioResult (dataclass)
+│   ├── test_all_scenarios_with_formal_metrics
 │   └── Per-scenario result storage
 │
 ├── EVALUATION_SCENARIOS (13 scenarios)
