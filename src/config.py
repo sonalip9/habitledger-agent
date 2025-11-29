@@ -43,10 +43,14 @@ def get_data_path(filename: str = "behaviour_principles.json") -> str:
     """
     Get the appropriate path to data files based on the environment.
 
-    On Kaggle, data files are expected to be in /kaggle/input/habitledger-data/
-    (when uploaded as a Kaggle Dataset). On local environments, the standard
-    data/ directory relative to the project root is used.
+    On Kaggle, data files are expected to be in /kaggle/input/habitledger-agent/data/
+    (when the repository is uploaded as a Kaggle Dataset). On local environments, the
+    standard data/ directory relative to the project root is used.
 
+    The function tries multiple fallback locations on Kaggle:
+    1. /kaggle/input/habitledger-agent/data/ (recommended)
+    2. /kaggle/input/habitledger-data/ (legacy)
+    3. /kaggle/working/ (embedded data)
     Args:
         filename: Name of the data file (default: "behaviour_principles.json").
 
@@ -71,6 +75,14 @@ def get_data_path(filename: str = "behaviour_principles.json") -> str:
         working_path = Path("/kaggle/working") / filename
         if working_path.exists():
             return str(working_path)
+
+    # No valid path found on Kaggle: raise explicit error
+    if is_kaggle_environment():
+        raise FileNotFoundError(
+            f"Data file '{filename}' not found in Kaggle environment. "
+            f"Please ensure the habitledger-agent dataset is attached to your notebook. "
+            f"See docs/KAGGLE_INSTRUCTIONS.md for setup instructions."
+        )
 
     # Local environment: use relative path from src/ to data/
     local_path = Path(__file__).parent.parent / "data" / filename
@@ -145,7 +157,7 @@ def get_api_key() -> str:
     # Try Kaggle Secrets first if on Kaggle
     if is_kaggle_environment():
         try:
-            from kaggle_secrets import UserSecretsClient  # type: ignore
+            from kaggle_secrets import UserSecretsClient  # type: ignore # pylint: disable=import-error
 
             user_secrets = UserSecretsClient()
             api_key = user_secrets.get_secret("GOOGLE_API_KEY")
