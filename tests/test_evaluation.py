@@ -194,7 +194,7 @@ class TestAgentEvaluation:
 
         # Analyze behavior
         analysis = analyse_behaviour(user_input, user_memory, behaviour_db)
-        _response = run_once(user_input, user_memory, behaviour_db)
+        run_once(user_input, user_memory, behaviour_db)
 
         # Assertions - Principle Detection
         assert (

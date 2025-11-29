@@ -5,8 +5,6 @@ This module tests dataclass validation, serialization/deserialization,
 and type correctness of all domain models.
 """
 
-import pytest
-
 from src.memory import UserProfile
 from src.models import (
     AnalysisResult,

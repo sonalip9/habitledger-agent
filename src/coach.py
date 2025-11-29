@@ -21,6 +21,7 @@ from src.adk_tools import behaviour_db_tool, get_behaviour_db_tool
 from src.behaviour_engine import analyse_behaviour, explain_principle, load_behaviour_db
 from src.config import setup_logging
 from src.memory import MAX_CONVERSATION_CONTEXT_LENGTH, UserMemory
+from src.memory_service import MemoryService
 from src.models import AnalysisResult, BehaviourDatabase
 
 from .config import get_adk_model_name, get_api_key
@@ -553,8 +554,6 @@ def run_once(
         return response
 
     # Step 3: Build memory summary for context
-    from src.memory_service import MemoryService
-
     active_streaks = MemoryService.get_active_streaks(memory)
     recent_struggles = MemoryService.get_recent_struggles(memory)
     memory_summary = f"Goals: {len(memory.goals)}, Streaks: {len(active_streaks)}, Recent struggles: {len(recent_struggles)}"

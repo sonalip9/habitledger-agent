@@ -5,8 +5,6 @@ This module tests memory-related business logic including recording
 interactions, feedback tracking, and memory analysis operations.
 """
 
-import pytest
-
 from src.memory_service import MemoryService
 
 
