@@ -9,6 +9,7 @@ The module follows these principles:
 - Single responsibility: Only handles configuration management
 - DRY: Centralizes all configuration logic in one place
 - Explicit errors: Raises clear exceptions when required config is missing
+- Environment compatibility: Works on both Kaggle and local environments
 """
 
 import logging
@@ -16,6 +17,79 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
+
+
+def is_kaggle_environment() -> bool:
+    """
+    Check if code is running in a Kaggle notebook environment.
+
+    This function detects the Kaggle environment by checking for
+    the KAGGLE_KERNEL_RUN_TYPE environment variable which is set
+    by Kaggle for all notebook kernels.
+
+    Returns:
+        bool: True if running on Kaggle, False otherwise.
+
+    Example:
+        >>> if is_kaggle_environment():
+        ...     print("Running on Kaggle")
+        ... else:
+        ...     print("Running locally")
+    """
+    return os.getenv("KAGGLE_KERNEL_RUN_TYPE") is not None
+
+
+def get_data_path(filename: str = "behaviour_principles.json") -> str:
+    """
+    Get the appropriate path to data files based on the environment.
+
+    On Kaggle, data files are expected to be in /kaggle/input/habitledger-data/
+    (when uploaded as a Kaggle Dataset). On local environments, the standard
+    data/ directory relative to the project root is used.
+
+    Args:
+        filename: Name of the data file (default: "behaviour_principles.json").
+
+    Returns:
+        str: Full path to the data file.
+
+    Example:
+        >>> db_path = get_data_path("behaviour_principles.json")
+        >>> behaviour_db = load_behaviour_db(db_path)
+    """
+    if is_kaggle_environment():
+        # On Kaggle, data is in /kaggle/input/{dataset-name}/
+        kaggle_data_path = Path("/kaggle/input/habitledger-data") / filename
+        if kaggle_data_path.exists():
+            return str(kaggle_data_path)
+        # Fallback to working directory if data is embedded
+        working_path = Path("/kaggle/working") / filename
+        if working_path.exists():
+            return str(working_path)
+
+    # Local environment: use relative path from src/ to data/
+    local_path = Path(__file__).parent.parent / "data" / filename
+    return str(local_path)
+
+
+def get_working_directory() -> Path:
+    """
+    Get the appropriate working directory for file output based on environment.
+
+    On Kaggle, writes should go to /kaggle/working/ which persists during
+    the notebook session. On local environments, uses the current working
+    directory or the project root.
+
+    Returns:
+        Path: Path to the working directory for file output.
+
+    Example:
+        >>> working_dir = get_working_directory()
+        >>> output_file = working_dir / "user_memory.json"
+    """
+    if is_kaggle_environment():
+        return Path("/kaggle/working")
+    return Path.cwd()
 
 
 def load_env() -> None:
@@ -26,6 +100,9 @@ def load_env() -> None:
     all environment variables from the .env file in the project root.
     It searches for .env file in the current directory and parent directories.
 
+    On Kaggle, this function is a no-op since environment variables
+    are managed through Kaggle Secrets.
+
     Returns:
         None
 
@@ -33,32 +110,62 @@ def load_env() -> None:
         This function is idempotent - calling it multiple times is safe.
         Existing environment variables will not be overwritten.
     """
+    # Skip loading .env on Kaggle (use Kaggle Secrets instead)
+    if is_kaggle_environment():
+        return
+
     env_path = Path(__file__).parent.parent / ".env"
     load_dotenv(dotenv_path=env_path)
 
 
 def get_api_key() -> str:
     """
-    Retrieve the Google API key from environment variables.
+    Retrieve the Google API key from environment variables or Kaggle Secrets.
+
+    On Kaggle, this function uses the Kaggle Secrets API to retrieve the
+    GOOGLE_API_KEY secret. On local environments, it reads from the
+    GOOGLE_API_KEY environment variable (typically set via .env file).
 
     Returns:
         str: The Google API key.
 
     Raises:
-        ValueError: If GOOGLE_API_KEY is not set in environment variables.
+        ValueError: If GOOGLE_API_KEY is not set in environment variables
+                   or Kaggle Secrets.
 
     Example:
         >>> api_key = get_api_key()
         >>> print(f"API key loaded: {api_key[:10]}...")
     """
+    # Try Kaggle Secrets first if on Kaggle
+    if is_kaggle_environment():
+        try:
+            from kaggle_secrets import UserSecretsClient  # type: ignore
+
+            user_secrets = UserSecretsClient()
+            api_key = user_secrets.get_secret("GOOGLE_API_KEY")
+            if api_key:
+                return api_key
+        except Exception:  # noqa: BLE001
+            # Fall through to environment variable check
+            pass
+
+    # Try environment variable
     api_key = os.getenv("GOOGLE_API_KEY")
 
     if not api_key:
-        raise ValueError(
-            "GOOGLE_API_KEY not found in environment variables. "
-            "Please set it in your .env file or environment. "
-            "Example: GOOGLE_API_KEY=your_api_key_here"
-        )
+        if is_kaggle_environment():
+            raise ValueError(
+                "GOOGLE_API_KEY not found in Kaggle Secrets. "
+                "Please add it via: Add-ons > Secrets > Add a new secret. "
+                "Use 'GOOGLE_API_KEY' as the label and your API key as the value."
+            )
+        else:
+            raise ValueError(
+                "GOOGLE_API_KEY not found in environment variables. "
+                "Please set it in your .env file or environment. "
+                "Example: GOOGLE_API_KEY=your_api_key_here"
+            )
 
     return api_key
 
