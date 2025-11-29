@@ -59,6 +59,11 @@ def get_data_path(filename: str = "behaviour_principles.json") -> str:
     """
     if is_kaggle_environment():
         # On Kaggle, data is in /kaggle/input/{dataset-name}/
+        # Try habitledger-agent dataset first (recommended setup)
+        kaggle_data_path = Path("/kaggle/input/habitledger-agent/data") / filename
+        if kaggle_data_path.exists():
+            return str(kaggle_data_path)
+        # Fallback to habitledger-data dataset (legacy)
         kaggle_data_path = Path("/kaggle/input/habitledger-data") / filename
         if kaggle_data_path.exists():
             return str(kaggle_data_path)
