@@ -21,7 +21,7 @@ from google.genai.types import (
 )
 
 from src.adk_config import INSTRUCTION_TEXT
-from src.config import get_adk_model_name, get_api_key, setup_logging
+from src.config import get_adk_model_name, get_api_key, load_env, setup_logging
 from src.memory import UserMemory
 from src.models import Goal
 from src.session_db import create_session_service
@@ -216,6 +216,9 @@ def run_cli() -> None:
         Run from command line:
         $ python -m src.habitledger_adk.runner
     """
+    # Load environment variables first
+    load_env()
+
     # Set up logging
     setup_logging()
     print("=" * 70)

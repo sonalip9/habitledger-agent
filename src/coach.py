@@ -24,7 +24,7 @@ from src.memory import MAX_CONVERSATION_CONTEXT_LENGTH, UserMemory
 from src.memory_service import MemoryService
 from src.models import AnalysisResult, BehaviourDatabase
 
-from .config import get_adk_model_name, get_api_key
+from .config import get_adk_model_name, get_api_key, load_env
 
 logger = logging.getLogger(__name__)
 
@@ -718,6 +718,9 @@ def main() -> None:
         > quit
         Goodbye!
     """
+    # Load environment variables first
+    load_env()
+    
     # Set up logging
     setup_logging()
 
