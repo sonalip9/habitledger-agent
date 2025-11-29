@@ -24,23 +24,6 @@ This document presents the formal evaluation results for the HabitLedger AI agen
 | **Latency** | Time taken for behavior analysis in milliseconds | `time.time()` before/after analysis |
 | **Principle Coverage** | Per-principle detection success rate | Correct/total for each principle type |
 
-### EvaluationMetrics Class
-
-The formal metrics are collected using the `EvaluationMetrics` class defined in `tests/test_evaluation.py`:
-
-```python
-@dataclass
-class EvaluationMetrics:
-    total_scenarios: int = 0
-    correct_detections: int = 0
-    detection_accuracy: float = 0.0
-    avg_confidence: float = 0.0
-    avg_interventions: float = 0.0
-    avg_response_length: float = 0.0
-    avg_latency_ms: float = 0.0
-    principle_coverage: dict[str, dict[str, Any]]
-```
-
 ---
 
 ## Test Scenarios
@@ -110,7 +93,7 @@ The agent uses an adaptive dual-path architecture:
 1. **Primary Path (LLM):** Uses Google Gemini for nuanced behavior analysis
 2. **Fallback Path (Keyword):** Pattern matching when LLM is unavailable
 
-```
+```text
 User Input → LLM Analysis → [Success?] → Yes → Return Result
                                  ↓ No
                           Keyword Fallback → Return Result
@@ -229,23 +212,17 @@ pytest tests/test_evaluation.py --cov=src --cov-report=term-missing
 
 ---
 
-## Competition Requirements
+## Implementation Reference
 
 ### Feature #3: Formal Agent Evaluation ✅
 
-| Requirement | Status | Implementation |
-|-------------|--------|----------------|
-| Test scenarios (10+) | ✅ | 13 scenarios covering all 8 principles |
-| Formal metrics definition | ✅ | EvaluationMetrics class with documented metrics |
-| Automated metric calculation | ✅ | calculate_aggregate_metrics() method |
-| LLM vs Keyword comparison | ✅ | TestModeComparison test class |
-| Documentation | ✅ | This file with methodology and results |
-
-### Scoring Impact: HIGH
-
-The expanded evaluation suite directly supports:
-- **Technical Implementation (50 points):** Demonstrates agent evaluation capability
-- **Documentation (20 points):** Comprehensive metrics documentation
+| Requirement | Status | Location |
+|-------------|--------|----------|
+| Test scenarios (10+) | ✅ | `tests/test_evaluation.py` - EVALUATION_SCENARIOS |
+| Formal metrics definition | ✅ | `tests/test_evaluation.py` - EvaluationMetrics class |
+| Automated metric calculation | ✅ | `tests/test_evaluation.py` - calculate_aggregate_metrics() |
+| LLM vs Keyword comparison | ✅ | `tests/test_evaluation.py` - TestModeComparison |
+| Documentation | ✅ | `docs/EVALUATION_RESULTS.md` |
 
 ---
 
