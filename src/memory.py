@@ -523,6 +523,10 @@ class UserMemory:
         try:
             role_enum = ConversationRole(role)
         except ValueError:
+            logger.warning(
+                "Invalid role '%s' provided to add_conversation_turn; falling back to ConversationRole.USER.",
+                role,
+            )
             role_enum = ConversationRole.USER
 
         turn = ConversationTurn(
