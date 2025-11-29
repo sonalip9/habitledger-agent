@@ -34,6 +34,13 @@ load_env()
 
 
 # =============================================================================
+# Constants
+# =============================================================================
+
+BAR_CHART_WIDTH = 10  # Width of bar charts in quality score visualization
+
+
+# =============================================================================
 # Evaluation Metrics Class
 # =============================================================================
 
@@ -203,7 +210,7 @@ def get_test_behaviour_db() -> dict[str, Any]:
 # Test Scenarios Data - All 8 Behavioral Principles
 # =============================================================================
 
-# Complete test scenarios covering all 8 behavioral principles with 10+ scenarios
+# Complete test scenarios covering all 8 behavioral principles with 13 scenarios
 EVALUATION_SCENARIOS = [
     # Habit Loops (2 scenarios)
     {
@@ -334,7 +341,7 @@ EVALUATION_SCENARIOS = [
         "expected_keywords": ["podcast", "enjoy", "reward", "treat", "combine"],
         "description": "User finds financial tasks boring",
     },
-    # Additional mixed scenarios (2 more for 12 total)
+    # Additional mixed scenarios (2 more for 13 total)
     {
         "id": "habit_loops_3",
         "name": "Habit Loops - Emotional Spending",
@@ -883,8 +890,8 @@ class TestExpandedEvaluation:
         metrics.print_summary()
 
         # Assertions for minimum quality thresholds
-        # Keyword fallback mode has lower accuracy (25-50%) which is acceptable
-        # LLM mode achieves 80-90%+ accuracy
+        # The assertion below enforces a minimum acceptable accuracy (25%) for keyword fallback mode,
+        # but observed accuracy is typically much higher (e.g., 84.6% as documented in EVALUATION_RESULTS.md).
         assert (
             metrics.total_scenarios == 13
         ), f"Expected 13 scenarios, got {metrics.total_scenarios}"
@@ -1005,8 +1012,8 @@ class TestExpandedEvaluation:
         print("🎯 INTERVENTION QUALITY SCORES")
         print("=" * 60)
         for qs in quality_scores:
-            bar = "█" * int(qs["percentage"] * 10) + "░" * (
-                10 - int(qs["percentage"] * 10)
+            bar = "█" * int(qs["percentage"] * BAR_CHART_WIDTH) + "░" * (
+                BAR_CHART_WIDTH - int(qs["percentage"] * BAR_CHART_WIDTH)
             )
             print(f"  {qs['scenario'][:30]:<32} [{bar}] {qs['percentage']:.0%}")
         print("-" * 60)

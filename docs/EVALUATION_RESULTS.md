@@ -150,7 +150,7 @@ tests/test_evaluation.py
 │   └── test_aggregate_evaluation_metrics
 │
 ├── TestExpandedEvaluation (NEW - 3 tests)
-│   ├── test_all_12_scenarios_with_formal_metrics
+│   ├── test_all_scenarios_with_formal_metrics
 │   ├── test_principle_coverage_comprehensive
 │   └── test_intervention_quality_scoring
 │
@@ -214,11 +214,9 @@ pytest tests/test_evaluation.py --cov=src --cov-report=term-missing
 
 ## Implementation Reference
 
-### Feature #3: Formal Agent Evaluation ✅
-
-| Requirement | Status | Location |
-|-------------|--------|----------|
-| Test scenarios (10+) | ✅ | `tests/test_evaluation.py` - EVALUATION_SCENARIOS |
+| Component | Status | File Location |
+|-----------|--------|---------------|
+| Test scenarios (13) | ✅ | `tests/test_evaluation.py` - EVALUATION_SCENARIOS |
 | Formal metrics definition | ✅ | `tests/test_evaluation.py` - EvaluationMetrics class |
 | Automated metric calculation | ✅ | `tests/test_evaluation.py` - calculate_aggregate_metrics() |
 | LLM vs Keyword comparison | ✅ | `tests/test_evaluation.py` - TestModeComparison |
