@@ -8,8 +8,6 @@ Uses Google ADK's native InMemorySessionService for session management.
 """
 
 import logging
-import sys
-from pathlib import Path
 from typing import Optional
 
 from google.adk.sessions import Session
@@ -22,16 +20,14 @@ from google.genai.types import (
     Type,
 )
 
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-
+from src.adk_config import INSTRUCTION_TEXT
 from src.config import get_adk_model_name, get_api_key, setup_logging
 from src.memory import UserMemory
+from src.models import Goal
 from src.session_db import create_session_service
 
 from . import agent as agent_module
-from .agent import INSTRUCTION_TEXT, habitledger_coach_tool
+from .agent import habitledger_coach_tool
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +64,7 @@ def save_memory_to_session(session: Session, user_memory: UserMemory) -> None:
             "user_id": user_memory.user_id,
             "goals_count": len(user_memory.goals),
             "active_streaks": sum(
-                1 for s in user_memory.streaks.values() if s.get("current", 0) > 0
+                1 for s in user_memory.streaks.values() if s.current > 0
             ),
             "total_streaks": len(user_memory.streaks),
             "struggles_count": len(user_memory.struggles),
@@ -176,6 +172,10 @@ def create_runner(
             "Existing session loaded",
             extra={"user_id": user_id, "session_id": session_id},
         )
+
+        if not session:
+            raise ValueError("Session not found")
+
     except Exception:
         logger.info("Session not found, creating new one")
         # Session doesn't exist, create new one
@@ -188,8 +188,8 @@ def create_runner(
         # Initialize user memory and save to session
         user_memory = UserMemory(user_id=user_id)
         user_memory.goals = [
-            {"description": "Build better financial habits"},
-            {"description": "Control impulse spending"},
+            Goal(description="Build better financial habits"),
+            Goal(description="Control impulse spending"),
         ]
         save_memory_to_session(session, user_memory)
 

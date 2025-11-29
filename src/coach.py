@@ -14,8 +14,10 @@ from pathlib import Path
 from typing import Any
 
 from google.genai import Client
-from google.genai.types import GenerateContentConfig
+from google.genai.types import Content, GenerateContentConfig, Part
 
+from src.adk_config import INSTRUCTION_TEXT
+from src.adk_tools import behaviour_db_tool, get_behaviour_db_tool
 from src.behaviour_engine import analyse_behaviour, explain_principle, load_behaviour_db
 from src.config import setup_logging
 from src.memory import MAX_CONVERSATION_CONTEXT_LENGTH, UserMemory
@@ -340,9 +342,6 @@ def _handle_tool_response(
     Returns:
         str or None: Final response text or None if no response.
     """
-    from google.genai.types import Content, Part
-
-    from .habitledger_adk.agent import behaviour_db_tool
 
     final_response_parts = []
 
@@ -439,9 +438,6 @@ def call_adk_agent(prompt_context: dict[str, Any]) -> str | None:
     start_time = time.time()
 
     try:
-        # Import here to avoid circular dependency
-        from .habitledger_adk.agent import INSTRUCTION_TEXT, get_behaviour_db_tool
-
         # Build context prompt
         context_prompt = _build_adk_context(prompt_context)
         user_input = prompt_context.get("user_input", "")
