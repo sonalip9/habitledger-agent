@@ -81,7 +81,9 @@ def get_adk_model_name() -> str:
     return os.getenv("GOOGLE_ADK_MODEL", "gemini-2.0-flash-exp")
 
 
-def setup_logging(level: str = "INFO", structured: bool = False) -> None:
+def setup_logging(
+    level: str = "INFO", structured: bool = False, console: bool = True
+) -> None:
     """
     Configure logging for HabitLedger with observability features.
 
@@ -94,6 +96,8 @@ def setup_logging(level: str = "INFO", structured: bool = False) -> None:
                Can also be set via LOG_LEVEL environment variable.
         structured: Whether to use JSON-structured logging for observability (default: False).
                    Can also be set via STRUCTURED_LOGGING=true environment variable.
+        console: Whether to log to console (default: True).
+                   Can also be set via CONSOLE_LOGGING=true environment variable.
 
     Example:
         >>> setup_logging()
@@ -140,10 +144,11 @@ def setup_logging(level: str = "INFO", structured: bool = False) -> None:
     logger = logging.getLogger()
     logger.setLevel(getattr(logging, log_level))
 
+    console_logging = os.getenv("CONSOLE_LOGGING", str(console)).lower() == "true"
     logging.basicConfig(
         format=log_format,
         datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[console_handler, file_handler],
+        handlers=[console_handler, file_handler] if console_logging else [file_handler],
         force=True,
     )
 
