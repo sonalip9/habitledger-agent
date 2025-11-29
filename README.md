@@ -521,17 +521,63 @@ The notebook demonstrates:
 
 ## 🧪 Evaluation
 
+HabitLedger includes a comprehensive formal evaluation suite with **14 tests** covering **13 scenarios** across all **8 behavioral principles**.
+
+### Key Metrics (Keyword Fallback Mode)
+
+| Metric | Result | Threshold |
+|--------|--------|-----------|
+| Detection Accuracy | **84.6%** | ≥40% |
+| Average Interventions | **4.8** per scenario | ≥2 |
+| Average Response Length | **413** chars | ≥200 |
+| Latency | **<1ms** | <2000ms |
+
+### Principle Coverage
+
+All 8 behavioral principles are tested:
+
+- ✅ habit_loops (3 scenarios, 100% accuracy)
+- ✅ loss_aversion (2 scenarios, 100% accuracy)
+- ✅ friction_increase (2 scenarios, 100% accuracy)
+- ✅ friction_reduction (1 scenario, 100% accuracy)
+- ✅ commitment_devices (1 scenario, 100% accuracy)
+- ⚠️ default_effect (1 scenario, 0% accuracy - keyword limitation)
+- ✅ micro_habits (2 scenarios, 50% accuracy)
+- ✅ temptation_bundling (1 scenario, 100% accuracy)
+
+### LLM vs Keyword Mode
+
+| Metric | LLM Mode | Keyword Mode |
+|--------|----------|--------------|
+| Detection Accuracy | 80-95% | 85% |
+| Latency | 500-2000ms | <1ms |
+| Context Awareness | Full | Basic |
+
+### Running Evaluation Tests
+
+```bash
+# Run all 14 evaluation tests
+pytest tests/test_evaluation.py -v
+
+# Run expanded evaluation with metrics output
+pytest tests/test_evaluation.py::TestExpandedEvaluation -v -s
+
+# Run comparison and benchmark tests
+pytest tests/test_evaluation.py::TestModeComparison -v -s
+pytest tests/test_evaluation.py::TestLatencyBenchmarks -v -s
+```
+
+For full evaluation methodology and results, see [docs/EVALUATION_RESULTS.md](docs/EVALUATION_RESULTS.md).
+
+### Evaluation Criteria
+
 HabitLedger can be evaluated on:
 
-- **Clarity** – Are the recommendations easy to understand?  
-- **Relevance** – Do the suggestions match the user’s described situation?  
-- **Behaviour grounding** – Does the agent correctly connect situations to behavioural principles?  
-- **Actionability** – Are the suggested actions small, realistic, and actionable?  
+- **Clarity** – Are the recommendations easy to understand?
+- **Relevance** – Do the suggestions match the user's described situation?
+- **Behaviour grounding** – Does the agent correctly connect situations to behavioural principles?
+- **Actionability** – Are the suggested actions small, realistic, and actionable?
 - **Consistency** – Does the agent remember and reuse user goals and struggles within a session?
-
-A small evaluation set of user scenarios and expected behaviours will be documented in the `notebooks/demo.ipynb` notebook.
-
----
 
 ## ⚠️ Limitations
 
