@@ -819,7 +819,7 @@ class TestExpandedEvaluation:
     """
     Expanded evaluation test suite covering all 8 behavioral principles.
 
-    This test class runs 12 scenarios covering:
+    This test class runs 13 scenarios covering:
     - habit_loops (3 scenarios)
     - loss_aversion (2 scenarios)
     - friction_increase (2 scenarios)
@@ -837,9 +837,9 @@ class TestExpandedEvaluation:
         """Fixture to load behaviour database."""
         return get_test_behaviour_db()
 
-    def test_all_12_scenarios_with_formal_metrics(self, behaviour_db):
+    def test_all_scenarios_with_formal_metrics(self, behaviour_db):
         """
-        Run all 12 evaluation scenarios with formal metrics collection.
+        Run all 13 evaluation scenarios with formal metrics collection.
 
         This test evaluates the agent across all 8 behavioral principles
         and collects comprehensive metrics for documentation.
@@ -886,8 +886,8 @@ class TestExpandedEvaluation:
         # Keyword fallback mode has lower accuracy (25-50%) which is acceptable
         # LLM mode achieves 80-90%+ accuracy
         assert (
-            metrics.total_scenarios >= 12
-        ), f"Expected at least 12 scenarios, got {metrics.total_scenarios}"
+            metrics.total_scenarios == 13
+        ), f"Expected 13 scenarios, got {metrics.total_scenarios}"
         assert (
             metrics.detection_accuracy >= 0.25
         ), f"Accuracy too low: {metrics.detection_accuracy:.1%}"
