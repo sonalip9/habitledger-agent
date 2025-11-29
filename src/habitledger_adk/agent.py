@@ -13,13 +13,18 @@ session services (DatabaseSessionService).
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
+from google.adk import Agent
 from google.genai import Client
 
+from src.adk_config import INSTRUCTION_TEXT
+from src.adk_tools import behaviour_db_tool
 from src.behaviour_engine import analyse_behaviour, load_behaviour_db
 from src.coach import run_once
+from src.llm_client import analyse_behaviour_with_llm
 from src.memory import UserMemory
+from src.memory_service import MemoryService
 
 logger = logging.getLogger(__name__)
 
@@ -35,49 +40,112 @@ def set_user_memory(memory: UserMemory) -> None:
     _user_memory = memory
 
 
-class HabitLedgerAgent:
+class HabitLedgerAgent(Agent):
     """
-    HabitLedger agent with dependency injection.
-
-    This class provides a stateless agent instance that accepts
-    behaviour database and user memory as dependencies, avoiding
-    global state for better testability and multi-user support.
+    ADK-based HabitLedger agent orchestrating behavioral money coaching.
+    Implements ADK lifecycle methods, dependency injection, tool registration,
+    LLM integration with fallback, state management, observability, and error handling.
     """
 
-    def __init__(self, behaviour_db: dict[str, Any], memory: UserMemory):
-        """
-        Initialize HabitLedger agent with dependencies.
+    def __init__(
+        self,
+        memory: UserMemory,
+        config: dict[str, Any],
+        llm_client=None,
+        tools: Optional[list[Any]] = None,
+    ):
+        if tools is None:
+            tools = [behaviour_db_tool]
 
-        Args:
-            behaviour_db: Dictionary containing behavioural principles.
-            memory: UserMemory instance for the current user.
-        """
-        self.behaviour_db = behaviour_db
+        super().__init__(
+            instruction=INSTRUCTION_TEXT, tools=tools, name="HabitLedgerAgent"
+        )
         self.memory = memory
+        self.config = config
+        self.llm_client = llm_client
 
-    def analyse_behaviour(self, user_input: str) -> dict[str, Any]:
+    def on_message(self, message: str):
         """
-        Analyze user input using the agent's behaviour database and memory.
-
-        Args:
-            user_input: The user's description of their financial habit situation.
-
-        Returns:
-            dict: Analysis result with detected principle and interventions.
+        Handle incoming user message: analyze, update state, respond.
+        Uses LLM for analysis, falls back to keyword-based if needed.
+        Persists state and logs decisions.
         """
-        return analyse_behaviour(user_input, self.memory, self.behaviour_db)
+        try:
+            # Try LLM-based analysis first
+            behaviour_db = self.config.get("behaviour_db")
+            if behaviour_db is None:
+                logger.error("behaviour_db not found in config")
+                return {"error": "Configuration error: behaviour_db not found"}
 
-    def generate_response(self, user_input: str) -> str:
+            result = None
+            if self.llm_client:
+                result = analyse_behaviour_with_llm(message, self.memory, behaviour_db)
+            if not result:
+                # Fallback: keyword-based
+                result = analyse_behaviour(message, self.memory, behaviour_db)
+
+            # Log principle detection
+            logger.info(
+                "principle_detected",
+                extra={
+                    "principle_id": result.get("detected_principle_id"),
+                    "confidence": result.get("confidence", 0.5),
+                    "method": "llm" if self.llm_client else "keyword",
+                    "reasoning": result.get("reason", ""),
+                },
+            )
+
+            # Update memory/state
+            MemoryService.record_interaction(
+                self.memory,
+                {
+                    "type": "intervention",
+                    "principle_id": result.get("detected_principle_id"),
+                    "description": result.get("reason", ""),
+                },
+            )
+            self.memory.add_conversation_turn("user", message)
+            self.memory.add_conversation_turn("assistant", result.get("reason", ""))
+            # Save memory with default path
+            memory_path = self.config.get(
+                "memory_path", f"memory_{self.memory.user_id}.json"
+            )
+            self.memory.save_to_file(memory_path)
+
+            # Build response
+            response = {
+                "principle": result.get("detected_principle_id"),
+                "interventions": result.get("intervention_suggestions", []),
+                "reasoning": result.get("reason", ""),
+            }
+            return response
+        except Exception as e:
+            logger.error("analysis_error", extra={"error": str(e)}, exc_info=True)
+            return {"error": f"Error processing message: {str(e)}"}
+
+    def on_tool_call(self, tool_name: str, args: dict):
         """
-        Generate a coaching response for user input.
-
-        Args:
-            user_input: The user's message.
-
-        Returns:
-            str: Coaching response.
+        Handle ADK tool calls, with error handling and logging.
         """
-        return run_once(user_input, self.memory, self.behaviour_db)
+        try:
+            if tool_name == "behaviour_db_tool":
+                result = behaviour_db_tool(
+                    args.get("user_input", ""), args.get("session_meta")
+                )
+                logger.info("tool_call", extra={"tool": tool_name, "result": result})
+                return result
+            # Add more tool handlers as needed
+            logger.warning("Unknown tool call", extra={"tool": tool_name})
+            return {"error": f"Unknown tool: {tool_name}"}
+        except Exception as e:
+            logger.error(
+                "tool_call_error",
+                extra={"tool": tool_name, "error": str(e)},
+                exc_info=True,
+            )
+            return {"error": f"Tool call failed: {str(e)}"}
+
+    # Additional ADK lifecycle methods can be added here as needed
 
 
 # Global state for backward compatibility (single-user demo)
@@ -109,6 +177,9 @@ def _ensure_initialized() -> tuple[UserMemory, dict[str, Any]]:
             Goal(description="Control impulse spending"),
         ]
 
+    # Type guard to satisfy type checker
+    assert _user_memory is not None
+    assert _behaviour_db is not None
     return _user_memory, _behaviour_db
 
 
