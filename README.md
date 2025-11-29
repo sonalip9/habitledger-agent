@@ -308,7 +308,14 @@ This continuous, stateful operation distinguishes HabitLedger as a true **agent*
 - Compatible with observability tools (ELK, Datadog, Splunk, Prometheus)
 - See [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md) for detailed documentation
 
-### 5. Demo-Friendly Notebook
+### 5. Comprehensive Documentation
+
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture, component diagrams, data flow, and type system
+- **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** - Development setup, workflow, testing guide, and migration instructions
+- **[docs/EVALUATION_RESULTS.md](docs/EVALUATION_RESULTS.md)** - Agent evaluation results, test metrics, and coverage analysis
+- **[docs/OBSERVABILITY.md](docs/OBSERVABILITY.md)** - Observability implementation, logging patterns, and monitoring
+
+### 6. Demo-Friendly Notebook
 
 - A clean Jupyter notebook for showcasing the agent  
 - Sample dialogues and pre-defined scenarios  
@@ -383,7 +390,7 @@ Planned structure (you can adjust as needed):
    GOOGLE_ADK_MODEL=gemini-2.0-flash-exp
    
    # Optional: Set logging level (default: INFO)
-   HABITLEDGER_LOG_LEVEL=INFO
+   LOG_LEVEL=INFO
    ```
 
    The agent will use LLM-based analysis when `GOOGLE_API_KEY` is set,
