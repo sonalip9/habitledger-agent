@@ -1,0 +1,146 @@
+[tool.black]
+line-length = 88
+target-version = ['py310', 'py311', 'py312', 'py313']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+  | __pycache__
+)/
+'''
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+# Enable pycodestyle (E, W), Pyflakes (F), and isort (I)
+select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "PT", "SIM"]
+
+# Disable specific rules
+ignore = [
+    "E501",   # Line too long (handled by formatter)
+    "B008",   # Do not perform function calls in argument defaults
+    "B904",   # Use raise from to specify exception cause
+    "UP045",  # Allow Optional syntax (don't require X | None)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # Unused imports in __init__.py
+"tests/*" = ["S101", "PLR2004", "PT018"]  # Allow assert, magic values, and complex assertions in tests
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = false  # Allow Any returns (common with JSON data)
+warn_unused_configs = true
+ignore_missing_imports = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = false
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+ignore_errors = true
+
+[tool.pylint.main]
+py-version = "3.10"
+jobs = 0  # Use all available CPUs
+
+[tool.pylint.messages_control]
+# Disable specific pylint warnings that are not applicable or too strict
+disable = [
+    "C0103",  # Invalid name (snake_case, etc.)
+    "C0114",  # Missing module docstring
+    "C0115",  # Missing class docstring
+    "C0116",  # Missing function docstring
+    "R0801",  # Similar lines in multiple files (duplicate code)
+    "R0902",  # Too many instance attributes
+    "R0903",  # Too few public methods
+    "R0912",  # Too many branches
+    "R0913",  # Too many arguments
+    "R0914",  # Too many local variables
+    "R0915",  # Too many statements
+    "R0917",  # Too many positional arguments
+    "R1702",  # Too many nested blocks
+    "R1731",  # Consider using max builtin
+    "R1711",  # Useless return statement
+    "W0603",  # Using global statement (intentional for singletons)
+    "W0718",  # Broad exception caught (intentional for robustness)
+    "W0719",  # Broad exception raised
+    "C0415",  # Import outside toplevel (lazy imports for circular deps)
+]
+
+[tool.pylint.format]
+max-line-length = 120
+max-module-lines = 1000
+
+[tool.pylint.design]
+max-args = 7
+max-locals = 20
+max-branches = 15
+max-statements = 70
+max-attributes = 12
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--showlocals",
+]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "slow: Slow running tests",
+]
+filterwarnings = [
+    "error",
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/.venv/*",
+    "*/venv/*",
+]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if __name__ == .__main__.:",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+]
+
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"

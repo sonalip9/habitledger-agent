@@ -1,0 +1,125 @@
+# Pylint configuration for HabitLedger project
+# This file configures pylint to work well with our codebase patterns
+
+[MASTER]
+# Use multiple processes to speed up Pylint
+jobs=0
+
+# Python version to target
+py-version=3.10
+
+# Files or directories to be skipped
+ignore=CVS,.git,__pycache__,.mypy_cache,.pytest_cache,venv,.venv,build,dist
+
+# Files or directories matching regex patterns are skipped
+ignore-patterns=
+
+[MESSAGES CONTROL]
+# Disable specific warnings that don't apply to our architecture
+
+disable=
+    ; # Documentation - we have comprehensive docstrings where needed
+    ; C0114,  # missing-module-docstring
+    ; C0115,  # missing-class-docstring  
+    ; C0116,  # missing-function-docstring
+    
+    ; # Naming conventions - our style is consistent
+    ; C0103,  # invalid-name
+    
+    # Code complexity - acceptable for domain logic
+    R0801,  # duplicate-code
+    R0902,  # too-many-instance-attributes (UserMemory has 10)
+    R0903,  # too-few-public-methods (data classes)
+    R0912,  # too-many-branches (control flow functions)
+    R0913,  # too-many-arguments (constructors)
+    R0914,  # too-many-local-variables
+    R0915,  # too-many-statements (CLI runners)
+    R0917,  # too-many-positional-arguments
+    R1702,  # too-many-nested-blocks
+    R1711,  # useless-return (explicit returns for clarity)
+    R1731,  # consider-using-max-builtin (readability)
+    
+    # Design patterns - intentional choices
+    W0603,  # global-statement (singleton pattern)
+    W0718,  # broad-exception-caught (robustness in tools)
+    W0719,  # broad-exception-raised
+    C0415,  # import-outside-toplevel (lazy loading)
+
+[REPORTS]
+# Output format
+output-format=colorized
+
+# Display messages score
+score=yes
+
+[FORMAT]
+# Maximum line length
+max-line-length=120
+
+# Maximum lines in a module
+max-module-lines=1000
+
+# String used for indentation
+indent-string='    '
+
+# Allow single-line if statements
+single-line-if-stmt=no
+
+[DESIGN]
+# Maximum number of arguments for function/method
+max-args=7
+
+# Maximum number of locals for function/method
+max-locals=20
+
+# Maximum number of branches for function/method
+max-branches=15
+
+# Maximum number of statements in function/method
+max-statements=70
+
+# Maximum number of attributes for a class
+max-attributes=12
+
+# Minimum lines for a function
+min-public-methods=1
+
+[SIMILARITIES]
+# Minimum lines of similar code to report
+min-similarity-lines=6
+
+# Ignore comments when computing similarities
+ignore-comments=yes
+
+# Ignore docstrings when computing similarities  
+ignore-docstrings=yes
+
+# Ignore imports when computing similarities
+ignore-imports=yes
+
+[BASIC]
+# Good variable names (allow single char like 'e', 'i', 'f')
+good-names=i,j,k,e,f,db,_
+
+# Naming conventions
+argument-naming-style=snake_case
+attr-naming-style=snake_case
+class-attribute-naming-style=any
+class-const-naming-style=UPPER_CASE
+class-naming-style=PascalCase
+const-naming-style=UPPER_CASE
+function-naming-style=snake_case
+method-naming-style=snake_case
+module-naming-style=snake_case
+variable-naming-style=snake_case
+
+[TYPECHECK]
+# Allow testing for membership in empty sequences
+ignore-mixin-members=yes
+
+# Allow accessing protected members in tests and internal modules
+ignored-modules=
+
+[EXCEPTIONS]
+# Exceptions that will emit a warning when caught
+overgeneral-exceptions=builtins.BaseException,builtins.Exception

@@ -16,16 +16,148 @@ from typing import Any
 from google.genai import Client
 from google.genai.types import Content, GenerateContentConfig, Part
 
-from src.behaviour_engine import analyse_behaviour, explain_principle
-from src.config import get_adk_model_name, get_api_key, setup_logging
-from src.habitledger_adk.agent import (
-    INSTRUCTION_TEXT,
-    behaviour_db_tool,
-    get_behaviour_db_tool,
-)
-from src.memory import UserMemory
+from src.adk_config import INSTRUCTION_TEXT
+from src.adk_tools import behaviour_db_tool, get_behaviour_db_tool
+from src.behaviour_engine import analyse_behaviour, explain_principle, load_behaviour_db
+from src.config import setup_logging
+from src.memory import MAX_CONVERSATION_CONTEXT_LENGTH, UserMemory
+from src.memory_service import MemoryService
+from src.models import AnalysisResult, BehaviourDatabase
+
+from .config import get_adk_model_name, get_api_key
 
 logger = logging.getLogger(__name__)
+
+
+def _handle_low_confidence_case(
+    principle_id: str,
+    user_input: str,
+    confidence: float,
+    behaviour_db: dict[str, Any],
+) -> str:
+    """
+    Handle low-confidence detections by asking clarifying questions.
+
+    Args:
+        principle_id: The tentatively detected principle ID.
+        user_input: The user's original input.
+        confidence: Confidence score for the detection.
+        behaviour_db: Dictionary containing behavioural principles.
+
+    Returns:
+        str: Response with clarifying questions.
+    """
+    logger.info(
+        "Low confidence detection (%.2f), asking clarifying questions",
+        confidence,
+        extra={
+            "event": "low_confidence_handling",
+            "principle_id": principle_id,
+            "confidence": confidence,
+        },
+    )
+    return _generate_clarifying_questions(principle_id, user_input, behaviour_db)
+
+
+def _build_template_response(
+    analysis: AnalysisResult,
+    behaviour_db: dict[str, Any],
+) -> str:
+    """
+    Build a template-based response from analysis results.
+
+    Args:
+        analysis: The behaviour analysis result.
+        behaviour_db: Dictionary containing behavioural principles.
+
+    Returns:
+        str: Formatted template response with principle and interventions.
+    """
+    detected_principle_id = analysis.detected_principle_id
+    reason = analysis.reason
+    interventions = analysis.intervention_suggestions
+    confidence = analysis.confidence
+    behaviour_db_obj = BehaviourDatabase.from_dict(behaviour_db)
+
+    response_parts = []
+
+    if detected_principle_id:
+        principle = behaviour_db_obj.get_principle_by_id(detected_principle_id)
+        principle_name = principle.name if principle else detected_principle_id
+
+        response_parts.append(f"🎯 **Detected Principle:** {principle_name}")
+        if confidence < 0.8:
+            response_parts.append(f" (Confidence: {int(confidence * 100)}%)")
+        response_parts.append("\n")
+        response_parts.append(f"💡 **Why:** {reason}\n")
+
+        # Add behavioural explanation
+        explanation = explain_principle(detected_principle_id, behaviour_db)
+        response_parts.append(f"\n{explanation}\n")
+
+        if interventions:
+            response_parts.append(f"\n✨ **Suggested Action:**\n{interventions[0]}\n")
+
+            if len(interventions) > 1:
+                response_parts.append("\n📝 **More Ideas:**")
+                for i, intervention in enumerate(interventions[1:3], 1):
+                    response_parts.append(f"\n{i}. {intervention}")
+    else:
+        response_parts.append("💬 **General Guidance**\n")
+        response_parts.append(f"{reason}\n")
+
+        if interventions:
+            response_parts.append("\n✨ **Suggestions:**")
+            for i, intervention in enumerate(interventions[:3], 1):
+                response_parts.append(f"\n{i}. {intervention}")
+
+    return "".join(response_parts)
+
+
+def _finalize_response(
+    response: str,
+    analysis: AnalysisResult,
+    memory: UserMemory,
+    source: str,
+) -> str:
+    """
+    Finalize response by recording it in memory.
+
+    Args:
+        response: The generated response text.
+        analysis: The behaviour analysis result.
+        memory: UserMemory instance.
+        source: Source of the response ("adk" or "template").
+
+    Returns:
+        str: The response (unchanged).
+    """
+    detected_principle_id = analysis.detected_principle_id
+    confidence = analysis.confidence
+    interventions = analysis.intervention_suggestions
+
+    # Record assistant response in conversation history
+    memory.add_conversation_turn(
+        "assistant",
+        response,
+        {
+            "principle_id": detected_principle_id,
+            "confidence": confidence,
+            "source": source,
+        },
+    )
+
+    # Update memory if intervention was provided
+    if detected_principle_id and interventions:
+        memory.record_interaction(
+            {
+                "type": "intervention",
+                "principle_id": detected_principle_id,
+                "description": interventions[0],
+            }
+        )
+
+    return response
 
 
 def _generate_clarifying_questions(
@@ -35,12 +167,6 @@ def _generate_clarifying_questions(
 ) -> str:
     """
     Generate clarifying questions when confidence is low.
-
-    TODO: Add test coverage for this function. Tests should verify:
-    1. Returns properly formatted response with questions
-    2. Generates appropriate questions for each principle type
-    3. Handles unknown principle_id gracefully (uses default questions)
-    4. Response includes expected sections (principle name, questions, encouragement)
 
     Args:
         principle_id: The tentatively detected principle ID.
@@ -143,32 +269,148 @@ def _get_clarifying_questions_for_principle(principle_id: str) -> list[str]:
     )
 
 
-def load_behaviour_db(path: str) -> dict[str, Any]:
+def _build_adk_context(prompt_context: dict[str, Any]) -> str:
     """
-    Load the behaviour principles database from a JSON file.
+    Build the context prompt for ADK agent.
 
     Args:
-        path: Path to the behaviour_principles.json file.
+        prompt_context: Dictionary with user_input, analysis_result, memory_summary.
 
     Returns:
-        dict: The loaded behaviour database containing principles and interventions.
-
-    Raises:
-        FileNotFoundError: If the database file doesn't exist.
-        json.JSONDecodeError: If the file contains invalid JSON.
-
-    Example:
-        >>> db = load_behaviour_db("data/behaviour_principles.json")
-        >>> print(len(db["principles"]))
-        8
+        str: Formatted context prompt.
     """
-    file_path = Path(path)
+    user_input = prompt_context.get("user_input", "")
+    analysis_result = prompt_context.get("analysis_result", {})
+    memory_summary = prompt_context.get("memory_summary", "")
 
-    if not file_path.exists():
-        raise FileNotFoundError(f"Behaviour database not found: {path}")
+    principle_id = analysis_result.get("detected_principle_id")
+    source = analysis_result.get("source", "unknown")
 
-    with open(file_path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return f"""User message: "{user_input}"
+
+Context:
+- Pre-analyzed principle: {principle_id or "None detected"}
+- Detection source: {source}
+- Memory: {memory_summary}
+
+Generate a supportive, actionable coaching response. Use the behaviour_db_tool if you need more details about the detected principle or want to explore alternative principles."""
+
+
+def _execute_adk_call(
+    client: Any,
+    model_name: str,
+    context_prompt: str,
+    config: Any,
+) -> Any:
+    """
+    Execute the ADK agent call.
+
+    Args:
+        client: GenAI client.
+        model_name: Model name to use.
+        context_prompt: Context prompt string.
+        config: Generation config.
+
+    Returns:
+        Response object from the model.
+    """
+    return client.models.generate_content(
+        model=model_name,
+        contents=context_prompt,
+        config=config,
+    )
+
+
+def _handle_tool_response(
+    client: Any,
+    model_name: str,
+    context_prompt: str,
+    initial_response: Any,
+    config: Any,
+    user_input: str,
+) -> str | None:
+    """
+    Handle tool calls in ADK agent response.
+
+    Args:
+        client: GenAI client.
+        model_name: Model name.
+        context_prompt: Original context prompt.
+        initial_response: Initial response from model.
+        config: Generation config.
+        user_input: Original user input.
+
+    Returns:
+        str or None: Final response text or None if no response.
+    """
+
+    final_response_parts = []
+
+    if (
+        initial_response.candidates
+        and initial_response.candidates[0].content
+        and initial_response.candidates[0].content.parts
+    ):
+        for part in initial_response.candidates[0].content.parts:
+            if hasattr(part, "function_call") and part.function_call:
+                # Execute the tool
+                func_name = part.function_call.name
+                args = part.function_call.args if part.function_call.args else {}
+
+                if func_name == "behaviour_db_tool":
+                    tool_input = (
+                        args.get("user_input", user_input)
+                        if hasattr(args, "get")
+                        else user_input
+                    )
+                    tool_result = behaviour_db_tool(tool_input)
+
+                    logger.info(
+                        "ADK agent called tool",
+                        extra={
+                            "event": "tool_call",
+                            "tool_name": func_name,
+                            "principle_id": tool_result.get("detected_principle_id"),
+                            "source": "adk",
+                        },
+                    )
+
+                    # Send tool result back to agent for final response
+                    tool_response_content = Content(
+                        parts=[
+                            Part.from_function_response(
+                                name=func_name,
+                                response=tool_result,
+                            )
+                        ]
+                    )
+
+                    # Continue conversation with tool result
+                    final_response = client.models.generate_content(
+                        model=model_name,
+                        contents=[
+                            context_prompt,
+                            initial_response.candidates[0].content,
+                            tool_response_content,
+                        ],
+                        config=config,
+                    )
+
+                    if (
+                        final_response.candidates
+                        and final_response.candidates[0].content
+                        and final_response.candidates[0].content.parts
+                    ):
+                        for final_part in final_response.candidates[0].content.parts:
+                            if hasattr(final_part, "text") and final_part.text:
+                                final_response_parts.append(final_part.text)
+            elif hasattr(part, "text") and part.text:
+                final_response_parts.append(part.text)
+
+    if final_response_parts:
+        return "".join(final_response_parts)
+
+    return None
 
 
 def call_adk_agent(prompt_context: dict[str, Any]) -> str | None:
@@ -197,23 +439,9 @@ def call_adk_agent(prompt_context: dict[str, Any]) -> str | None:
     start_time = time.time()
 
     try:
-        # Extract context
+        # Build context prompt
+        context_prompt = _build_adk_context(prompt_context)
         user_input = prompt_context.get("user_input", "")
-        analysis_result = prompt_context.get("analysis_result", {})
-        memory_summary = prompt_context.get("memory_summary", "")
-
-        # Build prompt with context
-        principle_id = analysis_result.get("detected_principle_id")
-        source = analysis_result.get("source", "unknown")
-
-        context_prompt = f"""User message: "{user_input}"
-
-Context:
-- Pre-analyzed principle: {principle_id or "None detected"}
-- Detection source: {source}
-- Memory: {memory_summary}
-
-Generate a supportive, actionable coaching response. Use the behaviour_db_tool if you need more details about the detected principle or want to explore alternative principles."""
 
         # Initialize client
         api_key = get_api_key()
@@ -226,91 +454,20 @@ Generate a supportive, actionable coaching response. Use the behaviour_db_tool i
             temperature=0.7,
         )
 
-        # First call - let agent decide to use tool
-        response = client.models.generate_content(
-            model=model_name,
-            contents=context_prompt,
-            config=config,
+        # Execute ADK call
+        response = _execute_adk_call(client, model_name, context_prompt, config)
+
+        # Handle tool calls and get final response
+        response_text = _handle_tool_response(
+            client, model_name, context_prompt, response, config, user_input
         )
 
-        # Check if agent called the tool
-        tool_used = False
-        final_response_parts = []
-
-        if (
-            response.candidates
-            and response.candidates[0].content
-            and response.candidates[0].content.parts
-        ):
-            for part in response.candidates[0].content.parts:
-                if hasattr(part, "function_call") and part.function_call:
-                    tool_used = True
-                    # Execute the tool
-                    func_name = part.function_call.name
-                    args = part.function_call.args if part.function_call.args else {}
-
-                    if func_name == "behaviour_db_tool":
-                        tool_input = (
-                            args.get("user_input", user_input)
-                            if hasattr(args, "get")
-                            else user_input
-                        )
-                        tool_result = behaviour_db_tool(tool_input)
-
-                        logger.info(
-                            "ADK agent called tool",
-                            extra={
-                                "event": "tool_call",
-                                "tool_name": func_name,
-                                "principle_id": tool_result.get(
-                                    "detected_principle_id"
-                                ),
-                                "source": "adk",
-                            },
-                        )
-
-                        # Send tool result back to agent for final response
-                        tool_response_content = Content(
-                            parts=[
-                                Part.from_function_response(
-                                    name=func_name,
-                                    response=tool_result,
-                                )
-                            ]
-                        )
-
-                        # Continue conversation with tool result
-                        final_response = client.models.generate_content(
-                            model=model_name,
-                            contents=[
-                                context_prompt,
-                                response.candidates[0].content,
-                                tool_response_content,
-                            ],
-                            config=config,
-                        )
-
-                        if (
-                            final_response.candidates
-                            and final_response.candidates[0].content
-                            and final_response.candidates[0].content.parts
-                        ):
-                            for final_part in final_response.candidates[
-                                0
-                            ].content.parts:
-                                if hasattr(final_part, "text") and final_part.text:
-                                    final_response_parts.append(final_part.text)
-                elif hasattr(part, "text") and part.text:
-                    final_response_parts.append(part.text)
-
-        if final_response_parts:
-            response_text = "".join(final_response_parts)
+        if response_text:
             duration_ms = int((time.time() - start_time) * 1000)
             user_input_truncated = (
-                prompt_context.get("user_input", "")[:MAX_CONVERSATION_CONTEXT_LENGTH]
-                if len(prompt_context.get("user_input", ""))
-                > MAX_CONVERSATION_CONTEXT_LENGTH
-                else prompt_context.get("user_input", "")
+                user_input[:MAX_CONVERSATION_CONTEXT_LENGTH]
+                if len(user_input) > MAX_CONVERSATION_CONTEXT_LENGTH
+                else user_input
             )
 
             logger.info(
@@ -318,7 +475,6 @@ Generate a supportive, actionable coaching response. Use the behaviour_db_tool i
                 extra={
                     "event": "response_generation",
                     "source": "adk",
-                    "tool_used": tool_used,
                     "response_length": len(response_text),
                     "user_input": user_input_truncated,
                     "duration_ms": duration_ms,
@@ -379,40 +535,33 @@ def run_once(
     memory.add_conversation_turn("user", user_input)
 
     # Step 1: Analyze user behaviour
-    analysis = analyse_behaviour(user_input, memory, behaviour_db)
-
-    detected_principle_id = analysis.get("detected_principle_id")
-    reason = analysis.get("reason", "")
-    interventions = analysis.get("intervention_suggestions", [])
-    confidence = analysis.get("confidence", 0.7)
+    analysis_dict = analyse_behaviour(user_input, memory, behaviour_db)
+    analysis = AnalysisResult.from_dict(analysis_dict)
 
     # Step 2: Check confidence and handle low-confidence detections
-    if confidence < 0.6 and detected_principle_id:
-        logger.info(
-            "Low confidence detection (%.2f), asking clarifying questions",
-            confidence,
-            extra={
-                "event": "low_confidence_handling",
-                "principle_id": detected_principle_id,
-                "confidence": confidence,
-            },
-        )
-        # Generate clarifying questions instead of direct intervention
-        response = _generate_clarifying_questions(
-            detected_principle_id, user_input, behaviour_db
+    if analysis.confidence < 0.6 and analysis.detected_principle_id:
+        response = _handle_low_confidence_case(
+            analysis.detected_principle_id,
+            user_input,
+            analysis.confidence,
+            behaviour_db,
         )
         memory.add_conversation_turn(
-            "assistant", response, {"confidence": confidence, "clarification": True}
+            "assistant",
+            response,
+            {"confidence": analysis.confidence, "clarification": True},
         )
         return response
 
     # Step 3: Build memory summary for context
-    memory_summary = f"Goals: {len(memory.goals)}, Streaks: {len(memory.streaks)}, Recent struggles: {len(memory.struggles)}"
+    active_streaks = MemoryService.get_active_streaks(memory)
+    recent_struggles = MemoryService.get_recent_struggles(memory)
+    memory_summary = f"Goals: {len(memory.goals)}, Streaks: {len(active_streaks)}, Recent struggles: {len(recent_struggles)}"
 
     # Step 4: Try ADK agent for response generation
     prompt_context = {
         "user_input": user_input,
-        "analysis_result": analysis,
+        "analysis_result": analysis_dict,
         "memory_summary": memory_summary,
     }
 
@@ -424,30 +573,11 @@ def run_once(
             extra={
                 "event": "response_generation",
                 "source": "adk",
-                "principle_id": detected_principle_id,
-                "confidence": confidence,
+                "principle_id": analysis.detected_principle_id,
+                "confidence": analysis.confidence,
             },
         )
-        # Record assistant response in conversation history
-        memory.add_conversation_turn(
-            "assistant",
-            adk_response,
-            {
-                "principle_id": detected_principle_id,
-                "confidence": confidence,
-                "source": "adk",
-            },
-        )
-        # Update memory
-        if detected_principle_id and interventions:
-            memory.record_interaction(
-                {
-                    "type": "intervention",
-                    "principle_id": detected_principle_id,
-                    "description": interventions[0],
-                }
-            )
-        return adk_response
+        return _finalize_response(adk_response, analysis, memory, "adk")
 
     # Step 5: Fallback to template-based response
     logger.info(
@@ -455,78 +585,13 @@ def run_once(
         extra={
             "event": "response_generation",
             "source": "template",
-            "principle_id": detected_principle_id,
-            "confidence": confidence,
+            "principle_id": analysis.detected_principle_id,
+            "confidence": analysis.confidence,
         },
     )
 
-    # Step 2: Build response
-    response_parts = []
-
-    if detected_principle_id:
-        # Find principle name for display
-        principles = behaviour_db.get("principles", [])
-        principle_data = next(
-            (p for p in principles if p.get("id") == detected_principle_id),
-            None,
-        )
-        principle_name = (
-            principle_data.get("name", detected_principle_id)
-            if principle_data
-            else detected_principle_id
-        )
-
-        response_parts.append(f"🎯 **Detected Principle:** {principle_name}")
-        if confidence < 0.8:
-            response_parts.append(f" (Confidence: {int(confidence * 100)}%)")
-        response_parts.append("\n")
-        response_parts.append(f"💡 **Why:** {reason}\n")
-
-        # Add behavioural explanation
-        explanation = explain_principle(detected_principle_id, behaviour_db)
-        response_parts.append(f"\n{explanation}\n")
-
-        if interventions:
-            response_parts.append(f"\n✨ **Suggested Action:**\n{interventions[0]}\n")
-
-            if len(interventions) > 1:
-                response_parts.append("\n📝 **More Ideas:**")
-                for i, intervention in enumerate(interventions[1:3], 1):
-                    response_parts.append(f"\n{i}. {intervention}")
-    else:
-        response_parts.append("💬 **General Guidance**\n")
-        response_parts.append(f"{reason}\n")
-
-        if interventions:
-            response_parts.append("\n✨ **Suggestions:**")
-            for i, intervention in enumerate(interventions[:3], 1):
-                response_parts.append(f"\n{i}. {intervention}")
-
-    # Step 6: Update memory
-    # Record this as an intervention if a principle was detected
-    if detected_principle_id and interventions:
-        memory.record_interaction(
-            {
-                "type": "intervention",
-                "principle_id": detected_principle_id,
-                "description": interventions[0],
-            }
-        )
-
-    # Record assistant response in conversation history
-    final_response = "".join(response_parts)
-    memory.add_conversation_turn(
-        "assistant",
-        final_response,
-        {
-            "principle_id": detected_principle_id,
-            "confidence": confidence,
-            "source": "template",
-        },
-    )
-
-    # Step 7: Return formatted response
-    return final_response
+    template_response = _build_template_response(analysis, behaviour_db)
+    return _finalize_response(template_response, analysis, memory, "template")
 
 
 def generate_session_summary(memory: UserMemory) -> str:
@@ -560,8 +625,8 @@ def generate_session_summary(memory: UserMemory) -> str:
     if memory.streaks:
         summary_parts.append("\n🔥 **Active Streaks:**\n")
         for streak_name, streak_data in memory.streaks.items():
-            current = streak_data.get("current", 0)
-            best = streak_data.get("best", 0)
+            current = streak_data.current
+            best = streak_data.best
             streak_label = streak_name.replace("_", " ").title()
 
             if current > 0:
@@ -583,13 +648,13 @@ def generate_session_summary(memory: UserMemory) -> str:
         # Show top 3 most frequent struggles
         sorted_struggles = sorted(
             memory.struggles,
-            key=lambda s: s.get("count", 0),
+            key=lambda s: s.count,
             reverse=True,
         )[:3]
 
         for struggle in sorted_struggles:
-            description = struggle.get("description", "Unknown")
-            count = struggle.get("count", 0)
+            description = struggle.description
+            count = struggle.count
             summary_parts.append(f"  • {description} ({count}x)\n")
     else:
         summary_parts.append("\n⚠️  **Struggles:** None recorded. Great progress!\n")
@@ -599,7 +664,7 @@ def generate_session_summary(memory: UserMemory) -> str:
         summary_parts.append("\n🔍 **Detected Patterns:**\n")
         for pattern_name, pattern_data in memory.behaviour_patterns.items():
             pattern_label = pattern_name.replace("_", " ").title()
-            occurrences = pattern_data.get("occurrences", 0)
+            occurrences = pattern_data.occurrences
             summary_parts.append(f"  • {pattern_label} ({occurrences}x)\n")
     else:
         summary_parts.append("\n🔍 **Patterns:** No recurring patterns detected yet.\n")
@@ -609,7 +674,7 @@ def generate_session_summary(memory: UserMemory) -> str:
     summary_parts.append("\n💬 **Coach's Note:**\n")
 
     # Personalize based on streaks
-    if memory.streaks and any(s.get("current", 0) > 0 for s in memory.streaks.values()):
+    if memory.streaks and any(s.current > 0 for s in memory.streaks.values()):
         summary_parts.append(
             "You're making progress! Every day you maintain a streak,\n"
             "you're rewiring your habits. Keep it up! 🌟\n"

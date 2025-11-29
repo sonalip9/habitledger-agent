@@ -7,28 +7,29 @@ including the primary LLM path and keyword-based fallback.
 
 import json
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
-from src.behaviour_engine import analyse_behaviour, _analyse_behaviour_keyword
-from src.llm_client import analyse_behaviour_with_llm, _build_memory_context
+from src.behaviour_engine import _analyse_behaviour_keyword, analyse_behaviour
+from src.llm_client import _build_memory_context, analyse_behaviour_with_llm
 from src.memory import UserMemory
+from src.models import Goal, StreakData, Struggle
 
 
 def get_test_behaviour_db():
     """Load the actual behaviour database for testing."""
     db_path = Path(__file__).parent.parent / "data" / "behaviour_principles.json"
-    with open(db_path, "r", encoding="utf-8") as f:
+    with open(db_path, encoding="utf-8") as f:
         return json.load(f)
 
 
 def assert_trigger_contains(triggers, keyword):
     """
     Helper function to check if any trigger contains the keyword.
-    
+
     Args:
         triggers: List of trigger strings
         keyword: Keyword to search for in triggers (case-insensitive)
-    
+
     Returns:
         bool: True if any trigger contains the keyword
     """
@@ -55,9 +56,10 @@ class TestKeywordFallback:
 
     def test_loss_aversion_with_streaks(self):
         """Test that loss aversion is detected with streak context."""
+
         behaviour_db = get_test_behaviour_db()
         memory = UserMemory(user_id="test_user")
-        memory.streaks = {"savings_streak": {"current": 10, "best": 15}}
+        memory.streaks = {"savings_streak": StreakData(current=10, best=15)}
 
         result = _analyse_behaviour_keyword(
             "I'm worried about losing my savings progress",
@@ -80,10 +82,9 @@ class TestKeywordFallback:
         )
 
         assert result["detected_principle_id"] == "habit_loops"
-        assert (
-            assert_trigger_contains(result["triggers_matched"], "every time")
-            or assert_trigger_contains(result["triggers_matched"], "automatic")
-        )
+        assert assert_trigger_contains(
+            result["triggers_matched"], "every time"
+        ) or assert_trigger_contains(result["triggers_matched"], "automatic")
 
     def test_no_match_returns_generic(self):
         """Test that no keyword match returns generic guidance."""
@@ -107,9 +108,9 @@ class TestLLMIntegration:
     def test_memory_context_building(self):
         """Test that memory context is properly formatted."""
         memory = UserMemory(user_id="test_user")
-        memory.goals = [{"description": "Save more money"}]
-        memory.streaks = {"savings": {"current": 5, "best": 10}}
-        memory.struggles = [{"description": "Impulse buying", "count": 3}]
+        memory.goals = [Goal(description="Save more money")]
+        memory.streaks = {"savings": StreakData(current=5, best=10)}
+        memory.struggles = [Struggle(description="Impulse buying", count=3)]
 
         context = _build_memory_context(memory)
 
@@ -179,7 +180,9 @@ class TestLLMIntegration:
 
     @patch("src.llm_client.Client")
     @patch("src.llm_client.get_api_key")
-    def test_llm_analysis_failure_returns_none(self, mock_get_api_key, mock_client_class):
+    def test_llm_analysis_failure_returns_none(
+        self, mock_get_api_key, mock_client_class
+    ):
         """Test that LLM failure returns None."""
         # Mock API key
         mock_get_api_key.return_value = "test_api_key"

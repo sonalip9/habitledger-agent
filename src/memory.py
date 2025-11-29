@@ -14,6 +14,17 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
+from .models import (
+    BehaviourPattern,
+    ConversationRole,
+    ConversationTurn,
+    Goal,
+    Intervention,
+    InterventionFeedback,
+    StreakData,
+    Struggle,
+)
+
 # Module-level logger for consistent logging across all functions
 logger = logging.getLogger(__name__)
 
@@ -21,12 +32,6 @@ logger = logging.getLogger(__name__)
 MAX_CONVERSATION_CONTEXT_LENGTH = 200
 
 
-# TODO: Add test coverage for UserProfile class:
-#   1. Default initialization with correct default values
-#   2. to_dict() serialization produces correct structure
-#   3. from_dict() deserialization handles missing fields with defaults
-#   4. update_from_interaction() correctly updates engagement level and learning speed
-#   5. State transitions (e.g., "low" → "medium" → "high" engagement)
 class UserProfile:
     """
     Tracks user personality and preferences for adaptive response generation.
@@ -112,19 +117,19 @@ class UserMemory:
 
     Attributes:
         user_id (str): Unique identifier for the user.
-        goals (list[dict]): List of user financial goals.
-        streaks (dict): Dictionary tracking habit streaks (e.g., no_food_delivery).
-        struggles (list[dict]): List of recorded user struggles with dates.
-        interventions (list[dict]): History of suggested interventions.
+        goals (list[Goal]): List of user financial goals.
+        streaks (dict[str, StreakData]): Dictionary tracking habit streaks (e.g., no_food_delivery).
+        struggles (list[Struggle]): List of recorded user struggles with dates.
+        interventions (list[Intervention]): History of suggested interventions.
         last_check_in (str): ISO format timestamp of last interaction.
-        behaviour_patterns (dict): Detected patterns (e.g., end_of_month_overspending).
-        conversation_history (list[dict]): Multi-turn conversation log with role, content, timestamp.
-        intervention_feedback (dict): Tracks effectiveness of each principle (success/failure rates).
+        behaviour_patterns (dict[str, BehaviourPattern]): Detected patterns (e.g., end_of_month_overspending).
+        conversation_history (list[ConversationTurn]): Multi-turn conversation log with role, content, timestamp.
+        intervention_feedback (dict[str, InterventionFeedback]): Tracks effectiveness of each principle.
         user_profile (UserProfile): Personalization settings for adaptive responses.
 
     Example:
         >>> memory = UserMemory(user_id="user123")
-        >>> memory.goals.append({"type": "savings", "target": "Save ₹5000/month"})
+        >>> memory.goals.append(Goal(description="Save ₹5000/month"))
         >>> memory.save_to_file("data/user123.json")
         >>> loaded = UserMemory.load_from_file("data/user123.json")
     """
@@ -132,14 +137,14 @@ class UserMemory:
     def __init__(
         self,
         user_id: str = "default_user",
-        goals: Optional[list[dict]] = None,
-        streaks: Optional[dict[str, dict]] = None,
-        struggles: Optional[list[dict]] = None,
-        interventions: Optional[list[dict]] = None,
+        goals: Optional[list[Goal]] = None,
+        streaks: Optional[dict[str, StreakData]] = None,
+        struggles: Optional[list[Struggle]] = None,
+        interventions: Optional[list[Intervention]] = None,
         last_check_in: Optional[str] = None,
-        behaviour_patterns: Optional[dict] = None,
-        conversation_history: Optional[list[dict]] = None,
-        intervention_feedback: Optional[dict[str, dict]] = None,
+        behaviour_patterns: Optional[dict[str, BehaviourPattern]] = None,
+        conversation_history: Optional[list[ConversationTurn]] = None,
+        intervention_feedback: Optional[dict[str, InterventionFeedback]] = None,
         user_profile: Optional[UserProfile] = None,
     ):
         """
@@ -152,7 +157,7 @@ class UserMemory:
             struggles: List of recorded struggles (default: empty list).
             interventions: History of interventions (default: empty list).
             last_check_in: ISO timestamp of last check-in (default: current time).
-            behaviour_patterns: Detected patterns (default: empty dict).
+            behaviour_patterns: Detected patterns mapped by pattern name (default: empty dict).
             conversation_history: Multi-turn conversation log (default: empty list).
             intervention_feedback: Effectiveness tracking per principle (default: empty dict).
             user_profile: Personalization settings (default: new UserProfile instance).
@@ -189,14 +194,18 @@ class UserMemory:
         """
         return {
             "user_id": self.user_id,
-            "goals": self.goals,
-            "streaks": self.streaks,
-            "struggles": self.struggles,
-            "interventions": self.interventions,
+            "goals": [g.to_dict() for g in self.goals],
+            "streaks": {k: v.to_dict() for k, v in self.streaks.items()},
+            "struggles": [s.to_dict() for s in self.struggles],
+            "interventions": [i.to_dict() for i in self.interventions],
             "last_check_in": self.last_check_in,
-            "behaviour_patterns": self.behaviour_patterns,
-            "conversation_history": self.conversation_history,
-            "intervention_feedback": self.intervention_feedback,
+            "behaviour_patterns": {
+                k: v.to_dict() for k, v in self.behaviour_patterns.items()
+            },
+            "conversation_history": [t.to_dict() for t in self.conversation_history],
+            "intervention_feedback": {
+                k: v.to_dict() for k, v in self.intervention_feedback.items()
+            },
             "user_profile": self.user_profile.to_dict(),
         }
 
@@ -222,16 +231,61 @@ class UserMemory:
             UserProfile.from_dict(profile_data) if profile_data else UserProfile()
         )
 
+        # Convert goals from dict to Goal objects
+        goals_data = data.get("goals", [])
+        goals = [Goal.from_dict(g) if isinstance(g, dict) else g for g in goals_data]
+
+        # Convert streaks from dict to StreakData objects
+        streaks_data = data.get("streaks", {})
+        streaks = {
+            k: StreakData.from_dict(v) if isinstance(v, dict) else v
+            for k, v in streaks_data.items()
+        }
+
+        # Convert struggles from dict to Struggle objects
+        struggles_data = data.get("struggles", [])
+        struggles = [
+            Struggle.from_dict(s) if isinstance(s, dict) else s for s in struggles_data
+        ]
+
+        # Convert interventions from dict to Intervention objects
+        interventions_data = data.get("interventions", [])
+        interventions = [
+            Intervention.from_dict(i) if isinstance(i, dict) else i
+            for i in interventions_data
+        ]
+
+        # Convert conversation history from dict to ConversationTurn objects
+        conversation_data = data.get("conversation_history", [])
+        conversation_history = [
+            ConversationTurn.from_dict(t) if isinstance(t, dict) else t
+            for t in conversation_data
+        ]
+
+        # Convert intervention feedback from dict to InterventionFeedback objects
+        feedback_data = data.get("intervention_feedback", {})
+        intervention_feedback = {
+            k: InterventionFeedback.from_dict(v) if isinstance(v, dict) else v
+            for k, v in feedback_data.items()
+        }
+
+        # Convert behaviour_patterns from dict to BehaviourPattern objects
+        patterns_data = data.get("behaviour_patterns", {})
+        behaviour_patterns = {
+            k: BehaviourPattern.from_dict(v) if isinstance(v, dict) else v
+            for k, v in patterns_data.items()
+        }
+
         return cls(
             user_id=data.get("user_id", "default_user"),
-            goals=data.get("goals", []),
-            streaks=data.get("streaks", {}),
-            struggles=data.get("struggles", []),
-            interventions=data.get("interventions", []),
+            goals=goals,
+            streaks=streaks,
+            struggles=struggles,
+            interventions=interventions,
             last_check_in=data.get("last_check_in"),
-            behaviour_patterns=data.get("behaviour_patterns", {}),
-            conversation_history=data.get("conversation_history", []),
-            intervention_feedback=data.get("intervention_feedback", {}),
+            behaviour_patterns=behaviour_patterns,
+            conversation_history=conversation_history,
+            intervention_feedback=intervention_feedback,
             user_profile=user_profile,
         )
 
@@ -260,7 +314,7 @@ class UserMemory:
         if not file_path.exists():
             raise FileNotFoundError(f"Memory file not found: {path}")
 
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             data = json.load(f)
 
         return cls.from_dict(data)
@@ -392,54 +446,50 @@ class UserMemory:
 
             if streak_name:
                 if streak_name not in self.streaks:
-                    self.streaks[streak_name] = {
-                        "current": 0,
-                        "best": 0,
-                        "last_updated": timestamp,
-                    }
+                    self.streaks[streak_name] = StreakData(
+                        current=0,
+                        best=0,
+                        last_updated=timestamp,
+                    )
 
+                streak = self.streaks[streak_name]
                 if success:
-                    self.streaks[streak_name]["current"] += 1
-                    if (
-                        self.streaks[streak_name]["current"]
-                        > self.streaks[streak_name]["best"]
-                    ):
-                        self.streaks[streak_name]["best"] = self.streaks[streak_name][
-                            "current"
-                        ]
+                    streak.current += 1
+                    if streak.current > streak.best:
+                        streak.best = streak.current
                 else:
-                    self.streaks[streak_name]["current"] = 0
+                    streak.current = 0
 
-                self.streaks[streak_name]["last_updated"] = timestamp
+                streak.last_updated = timestamp
 
         elif outcome_type == "struggle":
             description = outcome.get("description", "")
             if description:
                 # Check if this struggle already exists
                 existing = next(
-                    (s for s in self.struggles if s.get("description") == description),
+                    (s for s in self.struggles if s.description == description),
                     None,
                 )
                 if existing:
-                    existing["count"] = existing.get("count", 1) + 1
-                    existing["last_noted"] = timestamp
+                    existing.count = existing.count + 1
+                    existing.last_noted = timestamp
                 else:
                     self.struggles.append(
-                        {
-                            "description": description,
-                            "first_noted": timestamp,
-                            "last_noted": timestamp,
-                            "count": 1,
-                        }
+                        Struggle(
+                            description=description,
+                            first_noted=timestamp,
+                            last_noted=timestamp,
+                            count=1,
+                        )
                     )
 
         elif outcome_type == "intervention":
             self.interventions.append(
-                {
-                    "date": timestamp,
-                    "type": outcome.get("principle_id", "unknown"),
-                    "description": outcome.get("description", ""),
-                }
+                Intervention(
+                    date=timestamp,
+                    intervention_type=outcome.get("principle_id", "unknown"),
+                    description=outcome.get("description", ""),
+                )
             )
 
         # Update last check-in timestamp
@@ -478,14 +528,23 @@ class UserMemory:
             >>> memory.add_conversation_turn("assistant", "Let's work on that...", {"principle_id": "friction_increase"})
         """
         timestamp = datetime.now().isoformat()
-        turn: dict[str, Any] = {
-            "role": role,
-            "content": content,
-            "timestamp": timestamp,
-        }
 
-        if metadata:
-            turn["metadata"] = metadata
+        # Convert role string to ConversationRole enum
+        try:
+            role_enum = ConversationRole(role)
+        except ValueError:
+            logger.warning(
+                "Invalid role '%s' provided to add_conversation_turn; falling back to ConversationRole.USER.",
+                role,
+            )
+            role_enum = ConversationRole.USER
+
+        turn = ConversationTurn(
+            role=role_enum,
+            content=content,
+            timestamp=timestamp,
+            metadata=metadata or {},
+        )
 
         self.conversation_history.append(turn)
 
@@ -515,8 +574,8 @@ class UserMemory:
         context_parts = ["Recent conversation:"]
 
         for turn in recent_turns:
-            role = turn.get("role", "unknown").capitalize()
-            content = turn.get("content", "")[:MAX_CONVERSATION_CONTEXT_LENGTH]
+            role = turn.role.value.capitalize()
+            content = turn.content[:MAX_CONVERSATION_CONTEXT_LENGTH]
             context_parts.append(f"{role}: {content}")
 
         return "\n".join(context_parts)
@@ -528,12 +587,6 @@ class UserMemory:
     ) -> None:
         """
         Record the effectiveness of an intervention based on a principle.
-
-        TODO: Add test coverage for this method. Tests should verify:
-        1. Creating new feedback entry for a principle
-        2. Incrementing success/failure counts correctly
-        3. Calculating success_rate accurately (successes / total)
-        4. Multiple feedback recordings accumulate correctly
 
         This enables the agent to learn which principles work best for this user
         and adapt future recommendations accordingly.
@@ -550,35 +603,29 @@ class UserMemory:
             >>> print(f"Success rate: {feedback['successes']}/{feedback['total']}")
         """
         if principle_id not in self.intervention_feedback:
-            self.intervention_feedback[principle_id] = {
-                "successes": 0,
-                "failures": 0,
-                "total": 0,
-                "success_rate": 0.0,
-            }
+            self.intervention_feedback[principle_id] = InterventionFeedback(
+                successes=0,
+                failures=0,
+                total=0,
+                success_rate=0.0,
+            )
 
         feedback = self.intervention_feedback[principle_id]
-        feedback["total"] += 1
+        feedback.total += 1
 
         if success:
-            feedback["successes"] += 1
+            feedback.successes += 1
         else:
-            feedback["failures"] += 1
+            feedback.failures += 1
 
         # Calculate success rate
-        feedback["success_rate"] = feedback["successes"] / feedback["total"]
+        feedback.success_rate = feedback.successes / feedback.total
 
     def get_most_effective_principles(
         self, min_uses: int = 2
     ) -> list[tuple[str, float]]:
         """
         Get principles ranked by effectiveness for this user.
-
-        TODO: Add test coverage for this method. Tests should verify:
-        1. Filtering by minimum usage threshold (`min_uses` parameter)
-        2. Correct sorting by success rate (descending)
-        3. Returns empty list when no principles meet threshold
-        4. Returns correct tuples of (principle_id, success_rate)
 
         Args:
             min_uses: Minimum number of times a principle must have been used.
@@ -597,8 +644,8 @@ class UserMemory:
         principles = []
 
         for principle_id, feedback in self.intervention_feedback.items():
-            if feedback["total"] >= min_uses:
-                principles.append((principle_id, feedback["success_rate"]))
+            if feedback.total >= min_uses:
+                principles.append((principle_id, feedback.success_rate))
 
         # Sort by success rate descending
         principles.sort(key=lambda x: x[1], reverse=True)
@@ -650,8 +697,8 @@ def build_memory_summary(memory: UserMemory, include_profile: bool = True) -> st
         broken_streaks = []
 
         for streak_name, streak_data in memory.streaks.items():
-            current = streak_data.get("current", 0)
-            best = streak_data.get("best", 0)
+            current = streak_data.current
+            best = streak_data.best
             streak_label = streak_name.replace("_", " ").title()
 
             if current > 0:
@@ -677,15 +724,15 @@ def build_memory_summary(memory: UserMemory, include_profile: bool = True) -> st
         # Show most recent 3 struggles
         recent_struggles = sorted(
             memory.struggles,
-            key=lambda s: s.get("last_noted", ""),
+            key=lambda s: s.last_noted,
             reverse=True,
         )[:3]
 
         if recent_struggles:
             summary_parts.append("\n  **Recent patterns:**\n")
             for struggle in recent_struggles:
-                description = struggle.get("description", "Unknown")
-                count = struggle.get("count", 1)
+                description = struggle.description
+                count = struggle.count
                 summary_parts.append(f"  • {description} ({count}x)\n")
     else:
         summary_parts.append("\n⚠️  **Struggles:** None recorded yet.\n")
