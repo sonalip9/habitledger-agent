@@ -460,7 +460,7 @@ It behaves like a personalised **financial habit concierge** that guides, nudges
 ### 🏆 How HabitLedger Meets the Competition Scoring Criteria
 
 | Criterion | How HabitLedger satisfies it |
-|----------|-------------------------------|
+| ---------- | ------------------------------- |
 | **Problem Relevance** | Addresses the widespread issue of inconsistent financial habits and impulsive spending — a major everyday productivity barrier. |
 | **Agentic Design** | Maintains user memory (goals, streaks), uses a behaviour-principles knowledge base as a “tool”, performs multi-turn reasoning and adaptive interactions. |
 | **Technical Execution** | Modular Python structure (`coach.py`, `behaviour_engine.py`, `memory.py`), documented code, single-purpose functions, DRY, clean commits. |
