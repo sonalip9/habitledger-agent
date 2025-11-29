@@ -68,7 +68,7 @@ def get_adk_model_name() -> str:
     Get the model name to be used by the ADK HabitLedger agent.
 
     Reads from the GOOGLE_ADK_MODEL environment variable if set,
-    otherwise falls back to a sensible default (gemini-2.0-flash-exp).
+    otherwise falls back to gemini-1.5-flash which has better quota limits.
 
     Returns:
         str: The ADK model name to use.
@@ -76,9 +76,17 @@ def get_adk_model_name() -> str:
     Example:
         >>> model = get_adk_model_name()
         >>> print(model)
-        gemini-2.0-flash-exp
+        gemini-1.5-flash
+
+    Note:
+        gemini-1.5-flash is recommended for production as it has:
+        - Higher quota limits on free tier
+        - Better reliability and stability
+        - Lower rate of quota exhaustion
+
+        gemini-2.0-flash-exp is experimental and has stricter quotas.
     """
-    return os.getenv("GOOGLE_ADK_MODEL", "gemini-2.0-flash-exp")
+    return os.getenv("GOOGLE_ADK_MODEL", "gemini-1.5-flash")
 
 
 def setup_logging(

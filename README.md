@@ -68,6 +68,23 @@ Instead of offering financial advice, HabitLedger acts as a **behavioural money 
 
 ---
 
+## 🎯 Features Demonstrated
+
+This project demonstrates the key capabilities expected for the Agents Intensive competition:
+
+✅ **LLM-powered agents** — Gemini models for reasoning and response generation  
+✅ **Multi-agent system** — Coach orchestrator + Behavior Analysis agent  
+✅ **Custom tools** — `behaviour_db_tool` as ADK FunctionTool for knowledge retrieval  
+✅ **Sessions & Memory** — InMemorySessionService + JSON persistence for user state  
+✅ **Observability** — Structured logging with 10+ event types for transparency  
+✅ **Agent evaluation** — 20-scenario test suite with detection accuracy metrics
+
+**Total: 6/6 required features** (minimum 3 required ✓)
+
+See [Evaluation Results](docs/EVALUATION_RESULTS.md) for detailed metrics and test coverage.
+
+---
+
 ## 🧠 Core Concepts
 
 HabitLedger uses ideas from:
@@ -91,6 +108,8 @@ These principles are stored in a small internal **behaviour knowledge base**, wh
 ## 🏗️ Architecture & Agent Flow
 
 **This is an agent, not just a one-off LLM call.** HabitLedger operates through a continuous interaction loop that maintains state, uses tools, and adapts over time.
+
+*See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture diagrams, component documentation, and data model diagrams.*
 
 ### Agent Goal
 
@@ -277,26 +296,49 @@ This continuous, stateful operation distinguishes HabitLedger as a true **agent*
 
 ### 1. Habit Coaching
 
-- Daily check-ins about spending, saving, and budgeting  
-- Weekly reflections on progress and setbacks  
-- Personalised micro-habit suggestions  
-- Explanations of *why* a habit is likely to work
+Daily check-ins, weekly reflections, and personalised micro-habit suggestions with explanations of *why* they work.
+
+**Example Intervention:**
+
+> **User:** "I keep ordering food delivery when I'm stressed after work."  
+> **Agent:** "That sounds like a *habit loop* — stress is your cue, delivery is the routine, and comfort food is the reward. Let's try *substitution*: when you feel the stress cue, try a 5-minute walk before deciding. This breaks the automatic routine while keeping the reward (relaxation)."
 
 ### 2. Behaviour Analysis
 
-- Detects underlying patterns (for example, "end-of-month overspending")  
-- Links user behaviour to behavioural science concepts  
-- Suggests targeted interventions aligned with the detected bias
-- Uses LLM-powered analysis for nuanced understanding of user situations
-- Falls back to keyword-based analysis for reliability
-- Logs all analysis decisions and reasoning for transparency
+Detects underlying patterns and links them to behavioural science concepts using LLM-powered analysis with keyword fallback.
+
+**Example Detection:**
+
+```python
+# User says: "I want to save but end up spending everything by month end"
+AnalysisResult(
+    principle_id="present_bias",
+    principle_name="Present Bias",
+    confidence=0.85,
+    interventions=[
+        "Set up automatic transfer on salary day",
+        "Create a 'spend only' account with limited funds",
+        "Use commitment device: tell someone your goal"
+    ]
+)
+```
 
 ### 3. Memory & Tracking
 
-- Stores user goals (for example, "save a fixed amount each month")  
-- Tracks simple streaks (days you reported sticking to a habit)  
-- Records recurring struggles in free-text form  
-- Generates simple summaries of recent behaviour
+Persistent user state with goals, streaks, struggles, and intervention effectiveness tracking.
+
+**Example Memory State:**
+
+```python
+{
+    "streaks": {
+        "no_food_delivery": {"current": 12, "best": 15, "last_updated": "2024-11-17"}
+    },
+    "intervention_feedback": {
+        "friction_increase": {"successes": 8, "failures": 2, "success_rate": 0.80}
+    }
+}
+```
 
 ### 4. Observability & Logging
 
@@ -354,8 +396,8 @@ Planned structure (you can adjust as needed):
 1. **Clone the repository**
 
    ```bash
-   git clone <your-repo-url>
-   cd habitledger
+   git clone https://github.com/sonalip9/habitledger-agent.git
+   cd habitledger-agent
    ```
 
 2. **Create and activate a virtual environment**
@@ -372,8 +414,6 @@ Planned structure (you can adjust as needed):
 
 3. **Install dependencies**
 
-   Once `requirements.txt` is created:
-
    ```bash
    pip install -r requirements.txt
    ```
@@ -386,41 +426,23 @@ Planned structure (you can adjust as needed):
    # Required: Google API key for LLM-based analysis
    GOOGLE_API_KEY=your_api_key_here
    
-   # Optional: Set the model to use (default: gemini-2.0-flash-exp)
-   GOOGLE_ADK_MODEL=gemini-2.0-flash-exp
+   # Optional: Set the model to use (default: gemini-1.5-flash)
+   # gemini-1.5-flash is recommended for better quota management
+   GOOGLE_ADK_MODEL=gemini-1.5-flash
+   
+   # Optional: Rate limiting between LLM calls (default: 1.0 seconds)
+   # Increase this if you're hitting quota limits on free tier
+   LLM_MIN_CALL_INTERVAL=1.0
    
    # Optional: Set logging level (default: INFO)
    LOG_LEVEL=INFO
    ```
 
-   The agent will use LLM-based analysis when `GOOGLE_API_KEY` is set,
+   **Important:** The agent will use LLM-based analysis when `GOOGLE_API_KEY` is set,
    and automatically fall back to keyword-based analysis if the key is missing
-   or LLM calls fail.
+   or LLM calls fail (e.g., quota exhaustion).
 
----
-
-## ▶️ Running the Agent
-
-### Option 1: From the Notebook (Recommended for Demo)
-
-1. Open the notebook:
-
-   ```bash
-   jupyter notebook notebooks/demo.ipynb
-   ```
-
-2. Run all cells in order.  
-3. Interact with the agent through the provided input cells.
-
-### Option 2: From the Command Line (Optional)
-
-You can add a simple CLI entry point in `src/coach.py`:
-
-```bash
-python src/coach.py
-```
-
-This can start a simple text-based chat loop with the coach.
+   📚 **See [docs/QUOTA_MANAGEMENT.md](docs/QUOTA_MANAGEMENT.md) for detailed quota management guidance.**
 
 ---
 
@@ -445,7 +467,7 @@ It behaves like a personalised **financial habit concierge** that guides, nudges
 ### 🏆 How HabitLedger Meets the Competition Scoring Criteria
 
 | Criterion | How HabitLedger satisfies it |
-|----------|-------------------------------|
+| ---------- | ------------------------------- |
 | **Problem Relevance** | Addresses the widespread issue of inconsistent financial habits and impulsive spending — a major everyday productivity barrier. |
 | **Agentic Design** | Maintains user memory (goals, streaks), uses a behaviour-principles knowledge base as a “tool”, performs multi-turn reasoning and adaptive interactions. |
 | **Technical Execution** | Modular Python structure (`coach.py`, `behaviour_engine.py`, `memory.py`), documented code, single-purpose functions, DRY, clean commits. |
