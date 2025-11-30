@@ -9,7 +9,7 @@ behavioural principles and interventions.
 import logging
 import os
 import time
-from typing import Any
+from typing import Any, Optional
 
 from google.genai import Client
 from google.genai.types import (
@@ -85,7 +85,7 @@ Please analyze this situation and use the analyse_behaviour tool to provide:
 def _parse_llm_response(
     response: Any,
     behaviour_db: dict[str, Any],
-) -> dict[str, Any] | None:
+) -> Optional[dict[str, Any]]:
     """
     Parse the LLM response and extract analysis results.
 
@@ -126,7 +126,7 @@ def _parse_llm_response(
 def _validate_principle(
     result: dict[str, Any],
     behaviour_db: dict[str, Any],
-) -> dict[str, Any] | None:
+) -> Optional[dict[str, Any]]:
     """
     Validate that the detected principle exists and populate interventions if needed.
 
@@ -238,7 +238,7 @@ def analyse_behaviour_with_llm(
     user_input: str,
     user_memory: UserMemory,
     behaviour_db: dict[str, Any],
-) -> dict[str, Any] | None:
+) -> Optional[dict[str, Any]]:
     """
     Analyze user input using LLM to detect relevant behavioural principles.
 

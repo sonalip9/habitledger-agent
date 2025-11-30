@@ -8,7 +8,7 @@ extracted to avoid circular dependencies between coach and agent modules.
 import logging
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from google.genai.types import FunctionDeclaration, Schema, Tool, Type
 
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 def behaviour_db_tool(
-    user_input: str, session_meta: dict[str, Any] | None = None
+    user_input: str, session_meta: Optional[dict[str, Any]] = None
 ) -> dict[str, Any]:
     """
     Analyze user financial habit input and detect relevant behavioural principle.

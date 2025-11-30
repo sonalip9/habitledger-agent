@@ -6,6 +6,8 @@ of interactions with the user, including daily check-ins and weekly reviews.
 These templates help maintain consistent, structured conversations with users.
 """
 
+from typing import Optional
+
 
 def get_daily_checkin_prompt() -> str:
     """
@@ -104,7 +106,7 @@ Time to look back at your week and plan ahead!
 
 
 def build_sip_habit_plan(
-    goal_amount: float | None = None, monthly_sip: float | None = None
+    goal_amount: Optional[float] = None, monthly_sip: Optional[float] = None
 ) -> str:
     """
     Build a personalized SIP (Systematic Investment Plan) habit plan.

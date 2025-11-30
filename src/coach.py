@@ -11,7 +11,7 @@ import json
 import logging
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from google.genai import Client
 from google.genai.types import Content, GenerateContentConfig, Part
@@ -328,7 +328,7 @@ def _handle_tool_response(
     initial_response: Any,
     config: Any,
     user_input: str,
-) -> str | None:
+) -> Optional[str]:
     """
     Handle tool calls in ADK agent response.
 
@@ -413,7 +413,7 @@ def _handle_tool_response(
     return None
 
 
-def call_adk_agent(prompt_context: dict[str, Any]) -> str | None:
+def call_adk_agent(prompt_context: dict[str, Any]) -> Optional[str]:
     """
     Call the ADK agent to generate a natural-language coaching response.
 
