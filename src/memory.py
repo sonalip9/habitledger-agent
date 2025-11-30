@@ -12,7 +12,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from .models import (
     BehaviourPattern,
@@ -354,58 +354,123 @@ class UserMemory:
             },
         )
 
+    @staticmethod
+    def _validate_scope(scope: str) -> None:
+        """
+        Validate that scope is one of the three allowed values.
+
+        Args:
+            scope: Scope prefix to validate.
+
+        Raises:
+            ValueError: If scope is not 'user:', 'temp:', or ''.
+        """
+        valid_scopes = {"user:", "temp:", ""}
+        if scope not in valid_scopes:
+            raise ValueError(
+                f"Invalid scope '{scope}'. Must be one of: {', '.join(repr(s) for s in valid_scopes)}"
+            )
+
     def save_to_session_state(
-        self, session_state: dict[str, Any], key_prefix: str = "user:"
+        self,
+        session_state: dict[str, Any],
+        scope: Literal["user:", "temp:", ""] = "user:",
     ) -> None:
         """
-        Save UserMemory to ADK session state with "user:" scoping.
+        Save UserMemory to ADK session state with configurable scoping.
 
-        This helper function currently only implements the "user:" scope prefix
-        for cross-session persistence. ADK supports three scoping prefixes:
-        - 'user:' prefix: persists across all sessions for this user (implemented)
-        - No prefix: session-scoped only (not implemented in this helper)
-        - 'temp:' prefix: discarded after invocation (not implemented in this helper)
+        ADK supports three scoping levels for session state:
 
-        TODO: Implement support for all three scoping levels (user:, temp:, no prefix).
+        - **'user:'** (cross-session persistence):
+          Data persists across all sessions for this user. Use for long-term
+          user data like goals, habit streaks, struggles, and intervention history.
+          This is the default scope.
+
+        - **'temp:'** (temporary/transient):
+          Data is discarded after the current invocation completes. Use for
+          working memory, intermediate calculations, or draft responses that
+          should not persist.
+
+        - **''** (empty string, session-scoped):
+          Data persists only for the current session and is discarded when the
+          session ends. Use for current conversation context or session-specific
+          state that doesn't need cross-session persistence.
 
         Args:
             session_state: The session.state dictionary to update.
-            key_prefix: Prefix for state keys (default: "user:" for cross-session persistence).
+            scope: Scoping level - 'user:' (default), 'temp:', or '' (session-only).
+
+        Raises:
+            ValueError: If an invalid scope is provided.
 
         Example:
             >>> from google.adk.sessions import Session
             >>> session = Session(id='test', app_name='habitledger', userId='user123')
             >>> memory = UserMemory(user_id='user123')
-            >>> memory.save_to_session_state(session.state)
-            >>> print(session.state['user:memory'])
+            >>> # Save long-term data with cross-session persistence
+            >>> memory.save_to_session_state(session.state, scope="user:")
+            >>> # Save temporary working data
+            >>> memory.save_to_session_state(session.state, scope="temp:")
+            >>> # Save session-only conversation context
+            >>> memory.save_to_session_state(session.state, scope="")
         """
-        # Store full memory dict under single key for simplicity
-        memory_key = f"{key_prefix}memory" if key_prefix else "memory"
-        session_state[memory_key] = self.to_dict()
+        self._validate_scope(scope)
+        memory_dict = self.to_dict()
+
+        # Store memory under scoped key
+        memory_key = f"{scope}memory" if scope else "memory"
+        session_state[memory_key] = memory_dict
 
     @classmethod
     def load_from_session_state(
         cls,
         session_state: dict[str, Any],
-        key_prefix: str = "user:",
+        scope: Literal["user:", "temp:", ""] = "user:",
     ) -> Optional["UserMemory"]:
         """
-        Load UserMemory from ADK session state.
+        Load UserMemory from ADK session state with auto-migration support.
+
+        Attempts to load memory from the specified scope. If not found and scope
+        is 'user:', falls back to checking legacy 'memory' key without prefix
+        for backward compatibility with existing sessions.
 
         Args:
             session_state: The session.state dictionary to read from.
-            key_prefix: Prefix for state keys (default: "user:").
+            scope: Scoping level to read from - 'user:' (default), 'temp:', or ''.
 
         Returns:
             UserMemory or None: Loaded memory if found, None otherwise.
 
+        Raises:
+            ValueError: If an invalid scope is provided.
+
         Example:
             >>> from google.adk.sessions import Session
             >>> session = Session(id='test', app_name='habitledger', userId='user123')
-            >>> memory = UserMemory.load_from_session_state(session.state)
+            >>> # Load long-term user data
+            >>> memory = UserMemory.load_from_session_state(session.state, scope="user:")
+            >>> # Load temporary working data
+            >>> temp_memory = UserMemory.load_from_session_state(session.state, scope="temp:")
+            >>> # Load session-only data
+            >>> session_memory = UserMemory.load_from_session_state(session.state, scope="")
         """
-        memory_key = f"{key_prefix}memory" if key_prefix else "memory"
+        cls._validate_scope(scope)
+        memory_key = f"{scope}memory" if scope else "memory"
         memory_dict = session_state.get(memory_key)
+
+        # Auto-migration: if 'user:' scope not found, check legacy 'memory' key
+        if not memory_dict and scope == "user:":
+            legacy_key = "memory"
+            memory_dict = session_state.get(legacy_key)
+            if memory_dict:
+                logger.info(
+                    "Migrating legacy session state to 'user:' scope",
+                    extra={
+                        "event": "session_state_migration",
+                        "from_key": legacy_key,
+                        "to_key": memory_key,
+                    },
+                )
 
         if memory_dict:
             return cls.from_dict(memory_dict)

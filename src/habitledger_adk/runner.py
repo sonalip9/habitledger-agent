@@ -39,10 +39,10 @@ STATE_CONVERSATION_COUNT = "conversation_count"  # Session-scoped
 
 def save_memory_to_session(session: Session, user_memory: UserMemory) -> None:
     """
-    Save UserMemory to ADK session state.
+    Save UserMemory to ADK session state with appropriate scoping.
 
-    Uses the 'user:' prefix to ensure memory persists across all sessions
-    for this user.
+    Uses the 'user:' scope to ensure long-term user data (goals, streaks,
+    intervention history) persists across all sessions for this user.
 
     Args:
         session: ADK Session object.
@@ -53,8 +53,8 @@ def save_memory_to_session(session: Session, user_memory: UserMemory) -> None:
         >>> memory = UserMemory(user_id="user123")
         >>> save_memory_to_session(session, memory)
     """
-    memory_dict = user_memory.to_dict()
-    session.state[STATE_USER_MEMORY] = memory_dict
+    # Use 'user:' scope for cross-session persistence
+    user_memory.save_to_session_state(session.state, scope="user:")
 
     logger.info(
         "Memory saved to session state",
@@ -75,7 +75,10 @@ def save_memory_to_session(session: Session, user_memory: UserMemory) -> None:
 
 def load_memory_from_session(session: Session) -> Optional[UserMemory]:
     """
-    Load UserMemory from ADK session state.
+    Load UserMemory from ADK session state with auto-migration.
+
+    Loads from 'user:' scope for cross-session persistence. Automatically
+    migrates legacy session state without scope prefix for backward compatibility.
 
     Args:
         session: ADK Session object.
@@ -87,10 +90,8 @@ def load_memory_from_session(session: Session) -> Optional[UserMemory]:
         >>> session = session_service.get_session_sync(session_id="sess123")
         >>> memory = load_memory_from_session(session)
     """
-    memory_dict = session.state.get(STATE_USER_MEMORY)
-    if memory_dict:
-        return UserMemory.from_dict(memory_dict)
-    return None
+    # Load from 'user:' scope (auto-migrates legacy data if needed)
+    return UserMemory.load_from_session_state(session.state, scope="user:")
 
 
 def create_habitledger_tool() -> Tool:
