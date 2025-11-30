@@ -5,39 +5,25 @@ This module defines the main ADK agent for HabitLedger, configuring it
 with appropriate instructions and behavioural coaching capabilities using
 Google's Agent Development Kit (ADK).
 
-Note: This module uses global memory state for simplicity in the demo.
-For production with ADK Runner integration, use the session-based memory
-management provided in runner.py which integrates with ADK's native
-session services (DatabaseSessionService).
+This module implements proper dependency injection for multi-user support
+and testability. All dependencies (memory, behaviour_db) are passed explicitly
+through function parameters rather than relying on global state.
 """
 
 import logging
-from pathlib import Path
 from typing import Any, Optional
 
 from google.adk import Agent
-from google.genai import Client
 
 from src.adk_config import INSTRUCTION_TEXT
 from src.adk_tools import behaviour_db_tool
-from src.behaviour_engine import analyse_behaviour, load_behaviour_db
+from src.behaviour_engine import analyse_behaviour
 from src.coach import run_once
 from src.llm_client import analyse_behaviour_with_llm
 from src.memory import UserMemory
 from src.memory_service import MemoryService
 
 logger = logging.getLogger(__name__)
-
-
-def get_user_memory() -> UserMemory | None:
-    """Get the current user memory from global state."""
-    return _user_memory
-
-
-def set_user_memory(memory: UserMemory) -> None:
-    """Set the user memory in global state."""
-    global _user_memory  # noqa: PLW0603
-    _user_memory = memory
 
 
 class HabitLedgerAgent(Agent):
@@ -50,6 +36,7 @@ class HabitLedgerAgent(Agent):
     def __init__(
         self,
         memory: UserMemory,
+        behaviour_db: dict[str, Any],
         config: dict[str, Any],
         llm_client=None,
         tools: Optional[list[Any]] = None,
@@ -61,6 +48,7 @@ class HabitLedgerAgent(Agent):
             instruction=INSTRUCTION_TEXT, tools=tools, name="HabitLedgerAgent"
         )
         self.memory = memory
+        self.behaviour_db = behaviour_db
         self.config = config
         self.llm_client = llm_client
 
@@ -72,17 +60,14 @@ class HabitLedgerAgent(Agent):
         """
         try:
             # Try LLM-based analysis first
-            behaviour_db = self.config.get("behaviour_db")
-            if behaviour_db is None:
-                logger.error("behaviour_db not found in config")
-                return {"error": "Configuration error: behaviour_db not found"}
-
             result = None
             if self.llm_client:
-                result = analyse_behaviour_with_llm(message, self.memory, behaviour_db)
+                result = analyse_behaviour_with_llm(
+                    message, self.memory, self.behaviour_db
+                )
             if not result:
                 # Fallback: keyword-based
-                result = analyse_behaviour(message, self.memory, behaviour_db)
+                result = analyse_behaviour(message, self.memory, self.behaviour_db)
 
             # Log principle detection
             logger.info(
@@ -148,42 +133,9 @@ class HabitLedgerAgent(Agent):
     # Additional ADK lifecycle methods can be added here as needed
 
 
-# Global state for backward compatibility (single-user demo)
-_behaviour_db: dict[str, Any] | None = None
-_user_memory: UserMemory | None = None
-
-
-def _ensure_initialized() -> tuple[UserMemory, dict[str, Any]]:
-    """
-    Ensure behaviour DB and user memory are initialized (legacy, for backward compatibility).
-
-    Returns:
-        tuple: (user_memory, behaviour_db)
-    """
-    global _behaviour_db, _user_memory  # noqa: PLW0603
-
-    if _behaviour_db is None:
-        db_path = (
-            Path(__file__).parent.parent.parent / "data" / "behaviour_principles.json"
-        )
-        _behaviour_db = load_behaviour_db(str(db_path))
-
-    if _user_memory is None:
-        from src.models import Goal
-
-        _user_memory = UserMemory(user_id="adk_demo_user")
-        _user_memory.goals = [
-            Goal(description="Build better financial habits"),
-            Goal(description="Control impulse spending"),
-        ]
-
-    # Type guard to satisfy type checker
-    assert _user_memory is not None
-    assert _behaviour_db is not None
-    return _user_memory, _behaviour_db
-
-
-def habitledger_coach_tool(user_input: str) -> dict[str, str]:
+def habitledger_coach_tool(
+    user_input: str, memory: UserMemory, behaviour_db: dict[str, Any]
+) -> dict[str, str]:
     """
     Run the core HabitLedger coaching flow for a single user input.
 
@@ -193,6 +145,8 @@ def habitledger_coach_tool(user_input: str) -> dict[str, str]:
 
     Args:
         user_input: The user's free-text description of their financial habit situation.
+        memory: UserMemory instance for the current user session.
+        behaviour_db: Behaviour principles database.
 
     Returns:
         dict: A dictionary with keys:
@@ -201,53 +155,49 @@ def habitledger_coach_tool(user_input: str) -> dict[str, str]:
             - "status": str, status indicator ("success" or "error")
 
     Example:
-        >>> result = habitledger_coach_tool("I keep ordering food delivery")
+        >>> memory = UserMemory(user_id="user123")
+        >>> behaviour_db = load_behaviour_db("path/to/db.json")
+        >>> result = habitledger_coach_tool("I keep ordering food delivery", memory, behaviour_db)
         >>> print(result["response"])
         🎯 Detected Principle: Friction Increase...
     """
     try:
-        memory, behaviour_db = _ensure_initialized()
         response = run_once(user_input, memory, behaviour_db)
-
         return {"response": response, "status": "success"}
     except Exception as e:  # noqa: BLE001
         return {"response": f"Error processing request: {str(e)}", "status": "error"}
 
 
-def create_root_agent() -> Client:
+def create_root_agent(
+    memory: UserMemory,
+    behaviour_db: dict[str, Any],
+    config: Optional[dict[str, Any]] = None,
+) -> HabitLedgerAgent:
     """
     Create and configure the HabitLedger root agent using Google ADK.
 
-    This function initializes a Google GenAI client configured as the
-    HabitLedger behavioural money coach agent with the custom coaching tool.
+    This function initializes a HabitLedgerAgent with proper dependency injection
+    for multi-user support and testability.
+
+    Args:
+        memory: UserMemory instance for the user session.
+        behaviour_db: Behaviour principles database.
+        config: Optional configuration dictionary.
 
     Returns:
-        Client: Configured Google GenAI client acting as the HabitLedger agent
+        HabitLedgerAgent: Configured HabitLedger agent instance
 
     Example:
-        >>> agent = create_root_agent()
+        >>> memory = UserMemory(user_id="user123")
+        >>> behaviour_db = load_behaviour_db("path/to/db.json")
+        >>> agent = create_root_agent(memory, behaviour_db)
         >>> # Use agent for coaching interactions
     """
-    # Note: model_name will be used in future when creating agent instances
-    # with specific model configurations
+    if config is None:
+        config = {}
 
-    # Initialize client (tools will be configured when used)
-    client = Client()
-    return client
-
-
-# Module-level instances (created lazily to avoid requiring API key at import time)
-_root_agent = None
-
-
-def get_root_agent() -> Client:
-    """
-    Get or create the default root agent instance.
-
-    Returns:
-        Client: The configured HabitLedger agent client.
-    """
-    global _root_agent  # noqa: PLW0603
-    if _root_agent is None:
-        _root_agent = create_root_agent()
-    return _root_agent
+    return HabitLedgerAgent(
+        memory=memory,
+        behaviour_db=behaviour_db,
+        config=config,
+    )

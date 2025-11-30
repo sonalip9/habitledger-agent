@@ -21,12 +21,12 @@ from google.genai.types import (
 )
 
 from src.adk_config import INSTRUCTION_TEXT
+from src.behaviour_engine import load_behaviour_db
 from src.config import get_adk_model_name, get_api_key, load_env, setup_logging
 from src.memory import UserMemory
 from src.models import Goal
 from src.session_db import create_session_service
 
-from . import agent as agent_module
 from .agent import habitledger_coach_tool
 
 logger = logging.getLogger(__name__)
@@ -142,11 +142,11 @@ def create_runner(
         user_id: User identifier for the session (default: "demo_user").
 
     Returns:
-        tuple: (client, session_service, session) - The configured client,
-               session service, and the Session object.
+        tuple: (client, session_service, session, behaviour_db) - The configured client,
+               session service, Session object, and behaviour database.
 
     Example:
-        >>> client, service, session = create_runner("user123")
+        >>> client, service, session, behaviour_db = create_runner("user123")
         >>> memory = load_memory_from_session(session)
         >>> print(memory.user_id)
         user123
@@ -154,6 +154,12 @@ def create_runner(
     # Initialize client
     api_key = get_api_key()
     client = Client(api_key=api_key)
+
+    # Load behaviour database
+    from pathlib import Path
+
+    db_path = Path(__file__).parent.parent.parent / "data" / "behaviour_principles.json"
+    behaviour_db = load_behaviour_db(str(db_path))
 
     # Check if session already exists for this user
     session_id = f"session_{user_id}"
@@ -198,7 +204,7 @@ def create_runner(
             extra={"user_id": user_id, "session_id": session_id},
         )
 
-    return client, session_service, session
+    return client, session_service, session, behaviour_db
 
 
 def run_cli() -> None:
@@ -230,7 +236,9 @@ def run_cli() -> None:
 
     try:
         # Create runner with ADK session service
-        client, session_service, session = create_runner(user_id="cli_demo_user")
+        client, session_service, session, behaviour_db = create_runner(
+            user_id="cli_demo_user"
+        )
         model_name = get_adk_model_name()
 
         # Create tool
@@ -270,11 +278,6 @@ def run_cli() -> None:
                 # Load current memory from session
                 user_memory = load_memory_from_session(session)
 
-                # Sync memory to agent's global state before tool execution
-                # This ensures the tool operates on the session memory
-                if user_memory:
-                    agent_module.set_user_memory(user_memory)
-
                 # Generate response with tool calling
                 config = GenerateContentConfig(
                     system_instruction=INSTRUCTION_TEXT,
@@ -307,7 +310,16 @@ def run_cli() -> None:
                                 if hasattr(args, "get")
                                 else user_input
                             )
-                            tool_result = habitledger_coach_tool(tool_input)
+                            # Pass memory and behaviour_db to tool
+                            if user_memory is None:
+                                tool_result = {
+                                    "response": "Error: No user memory found",
+                                    "status": "error",
+                                }
+                            else:
+                                tool_result = habitledger_coach_tool(
+                                    tool_input, user_memory, behaviour_db
+                                )
 
                             # Send tool result back to model
                             agent_response = tool_result["response"]
@@ -325,11 +337,9 @@ def run_cli() -> None:
                 # Note: session_service.append_event() is async and requires await
                 # For now, we rely on conversation_history in UserMemory for tracking
 
-                # Retrieve updated memory from agent's global state after tool execution
-                # The tool modifies the global user memory, so we need to sync it back
-                updated_memory = agent_module.get_user_memory()
-                if updated_memory:
-                    user_memory = updated_memory
+                # Save updated memory to session
+                # The tool modifies the memory object in place, so we save it directly
+                if user_memory:
                     save_memory_to_session(session, user_memory)
 
                     # Increment conversation counter
