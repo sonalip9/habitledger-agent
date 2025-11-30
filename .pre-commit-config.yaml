@@ -39,7 +39,7 @@ repos:
         entry: python -m pytest tests/ -q --tb=short
         language: system
         pass_filenames: false
-        stages: [push]
+        stages: [pre-push]
 
 default_language_version:
   python: python3.13
