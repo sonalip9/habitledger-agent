@@ -434,14 +434,16 @@ class TestAgentEvaluation:
         assert analysis["detected_principle_id"] in [
             "habit_loops",
             "friction_increase",
-        ], f"Expected habit_loops or friction_increase, got '{analysis['detected_principle_id']}'"
+        ], (
+            f"Expected habit_loops or friction_increase, got '{analysis['detected_principle_id']}'"
+        )
         assert analysis["confidence"] > 0, f"Low confidence: {analysis['confidence']}"
 
         # Assertions - Intervention Relevance
         interventions = analysis["intervention_suggestions"]
-        assert (
-            len(interventions) >= 2
-        ), f"Expected at least 2 interventions, got {len(interventions)}"
+        assert len(interventions) >= 2, (
+            f"Expected at least 2 interventions, got {len(interventions)}"
+        )
 
         # Check that interventions are about breaking loops or alternatives
         intervention_text = " ".join(interventions).lower()
@@ -449,15 +451,15 @@ class TestAgentEvaluation:
         has_relevant_intervention = any(
             keyword in intervention_text for keyword in relevant_keywords
         )
-        assert (
-            has_relevant_intervention
-        ), "Interventions don't address habit loop breaking"
+        assert has_relevant_intervention, (
+            "Interventions don't address habit loop breaking"
+        )
 
         # Assertions - Response Quality
         assert len(response) > 200, "Response too short to be helpful"
-        assert (
-            "habit" in response.lower() or "loop" in response.lower()
-        ), "Response doesn't explain the behavioral principle"
+        assert "habit" in response.lower() or "loop" in response.lower(), (
+            "Response doesn't explain the behavioral principle"
+        )
 
         print("\n✓ Scenario 1 PASSED: Habit Loops Detection")
         print(f"  Principle: {analysis['detected_principle_id']}")
@@ -508,9 +510,9 @@ class TestAgentEvaluation:
 
         # Assertions - Intervention Relevance
         interventions = analysis["intervention_suggestions"]
-        assert (
-            len(interventions) >= 1
-        ), f"Expected at least 1 intervention, got {len(interventions)}"
+        assert len(interventions) >= 1, (
+            f"Expected at least 1 intervention, got {len(interventions)}"
+        )
 
         # Assertions - Response Quality (should provide some guidance)
         assert len(response) > 50, "Response too short to be helpful"
@@ -545,15 +547,15 @@ class TestAgentEvaluation:
         run_once(user_input, user_memory, behaviour_db)
 
         # Assertions - Principle Detection
-        assert (
-            analysis["detected_principle_id"] == "friction_increase"
-        ), f"Expected 'friction_increase', got '{analysis['detected_principle_id']}'"
+        assert analysis["detected_principle_id"] == "friction_increase", (
+            f"Expected 'friction_increase', got '{analysis['detected_principle_id']}'"
+        )
 
         # Assertions - Intervention Relevance
         interventions = analysis["intervention_suggestions"]
-        assert (
-            len(interventions) >= 2
-        ), f"Expected at least 2 interventions, got {len(interventions)}"
+        assert len(interventions) >= 2, (
+            f"Expected at least 2 interventions, got {len(interventions)}"
+        )
 
         intervention_text = " ".join(interventions).lower()
         suggests_friction = any(
@@ -615,9 +617,9 @@ class TestAgentEvaluation:
 
         # Assertions - Intervention Relevance
         interventions = analysis["intervention_suggestions"]
-        assert (
-            len(interventions) >= 1
-        ), f"Expected at least 1 intervention, got {len(interventions)}"
+        assert len(interventions) >= 1, (
+            f"Expected at least 1 intervention, got {len(interventions)}"
+        )
 
         # Response should provide some guidance
         assert len(response) > 50, "Response too short to be helpful"
@@ -668,9 +670,9 @@ class TestAgentEvaluation:
 
         # Assertions - Intervention Relevance
         interventions = analysis["intervention_suggestions"]
-        assert (
-            len(interventions) >= 2
-        ), f"Expected at least 2 interventions, got {len(interventions)}"
+        assert len(interventions) >= 2, (
+            f"Expected at least 2 interventions, got {len(interventions)}"
+        )
 
         intervention_text = " ".join(interventions).lower()
         suggests_action = any(
@@ -794,13 +796,13 @@ class TestEvaluationSummary:
         )
 
         # Core quality assertions that apply regardless of detection method
-        assert (
-            accuracy >= min_accuracy
-        ), f"Accuracy too low: {accuracy:.1%} (expected ≥{min_accuracy:.0%})"
+        assert accuracy >= min_accuracy, (
+            f"Accuracy too low: {accuracy:.1%} (expected ≥{min_accuracy:.0%})"
+        )
         assert avg_interventions >= 2, f"Too few interventions: {avg_interventions:.1f}"
-        assert (
-            avg_response_length >= 200
-        ), f"Responses too short: {avg_response_length:.0f}"
+        assert avg_response_length >= 200, (
+            f"Responses too short: {avg_response_length:.0f}"
+        )
 
         # Provide context in output
         if accuracy >= 0.80:
