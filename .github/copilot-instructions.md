@@ -880,6 +880,46 @@ except Exception as e:
     # Provide fallback or re-raise
 ```
 
+## README Maintenance
+
+The `README.md` must be kept up to date as the project evolves.
+
+Whenever the project behaviour, features, or usage changes, ensure:
+
+- The **README is updated in the same work session** as the code change.
+- If a new feature is added:
+  - Add or update the relevant sections in the README.
+- If behaviour changes:
+  - Update feature descriptions or limitations.
+- If the structure changes:
+  - Update the project structure section.
+
+Prefer **separate commits** for README updates when they are substantial:
+
+- Example:
+  - `feat(agent): add weekly review flow`
+  - `docs(readme): document weekly review feature`
+
+---
+
+## General Behaviour for Copilot (and AI Assistants)
+
+When generating or modifying code in this repository, Copilot should:
+
+1. **Follow the project conventions** described here.
+2. **Prefer clarity over cleverness**.
+3. **Suggest small, focused changes** suitable for atomic commits.
+4. **Avoid introducing unused code** or unnecessary abstractions.
+5. **Respect existing naming and module patterns** unless refactoring explicitly.
+
+Whenever in doubt, Copilot should produce:
+
+- Clear, small, and well-documented functions.
+- Changes that can be described with a concise, conventional commit message.
+- Updates that keep the README and project structure aligned with the current state of the code.
+
+---
+
 ## Code Review Checklist
 
 Before committing, ensure:
