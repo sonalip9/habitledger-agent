@@ -1,9 +1,9 @@
 # HabitLedger: Your Personal Behavioral Money Coach
 
-**Competition:** Agents Intensive – Capstone Project (Kaggle)  
-**Track:** Concierge Agents  
-**Team:** Solo (Sonali Parekh)  
-**Repository:** <https://github.com/sonalip9/habitledger-agent>  
+**Competition:** Agents Intensive – Capstone Project (Kaggle)
+**Track:** Concierge Agents
+**Team:** Solo (Sonali Parekh)
+**Repository:** <https://github.com/sonalip9/habitledger-agent>
 **Demo:** `notebooks/demo.ipynb`
 
 ---
@@ -69,11 +69,11 @@ User Input → Coach Agent (Root Orchestrator)
 
 ### Competition Features Demonstrated
 
-✅ **LLM-powered agents** (Gemini for reasoning/generation)  
-✅ **Multi-agent system** (Coach + Behavior Analysis agents)  
-✅ **Custom tools** (`behaviour_db_tool` as ADK FunctionTool)  
-✅ **Sessions & Memory** (InMemorySessionService + JSON persistence)  
-✅ **Observability** (Structured logging with 10+ event types)  
+✅ **LLM-powered agents** (Gemini for reasoning/generation)
+✅ **Multi-agent system** (Coach + Behavior Analysis agents)
+✅ **Custom tools** (`behaviour_db_tool` as ADK FunctionTool)
+✅ **Sessions & Memory** (InMemorySessionService + JSON persistence)
+✅ **Observability** (Structured logging with 10+ event types)
 ✅ **Agent evaluation** (20-scenario test suite with metrics)
 
 **Total: 6/6 required features** (minimum 3 required ✓)
@@ -94,7 +94,7 @@ User Input → Coach Agent (Root Orchestrator)
 - Memory context: User has 30-day SIP consistency goal
 - Retrieves interventions: Automation, calendar reminders, commitment devices
 
-**Agent Response:**  
+**Agent Response:**
 > "I hear you—prioritizing today over tomorrow is really common when money feels tight now. This is *present bias*. Let's make it automatic: set up auto-debit for your SIP so the decision happens once, not monthly. Also try marking SIP day with a small reward after (coffee you love). Want help setting that up?"
 
 ### Evaluation Results (20 scenarios)
@@ -105,6 +105,17 @@ User Input → Coach Agent (Root Orchestrator)
 | Emotional spending | 90% (9/10) | Relevant |
 | Budget drift | 100% (3/3) | Relevant |
 | **Overall** | **95% (19/20)** | **92% relevant+** |
+
+### System Capability Metrics
+
+| Metric | Result | Details |
+|--------|--------|----------|
+| **Principle Detection Accuracy** | 84.6% (keyword) / 95% (test scenarios) | 11/13 correct in keyword fallback mode |
+| **Fallback Reliability** | 100% uptime | Dual-path architecture ensures system always responds |
+| **Average Interventions** | 4.8 per scenario | Consistently provides actionable suggestions |
+| **Response Latency** | <1ms (keyword) / 500-2000ms (LLM) | Fast fallback when LLM unavailable |
+
+See [docs/EVALUATION_RESULTS.md](docs/EVALUATION_RESULTS.md) for complete test methodology and detailed metrics.
 
 **Quick Start:**
 
@@ -174,6 +185,6 @@ python -m src.habitledger_adk.runner   # CLI agent
 
 ---
 
-**Repository:** <https://github.com/sonalip9/habitledger-agent>  
-**Demo Notebook:** `notebooks/demo.ipynb`  
+**Repository:** <https://github.com/sonalip9/habitledger-agent>
+**Demo Notebook:** `notebooks/demo.ipynb`
 **Documentation:** Comprehensive docs in `README.md` and `docs/` folder
