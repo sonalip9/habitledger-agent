@@ -7,6 +7,7 @@ in various modes, including a simple CLI for local testing and demonstration.
 Uses Google ADK's native InMemorySessionService for session management.
 """
 
+import asyncio
 import logging
 from typing import Optional
 
@@ -130,14 +131,14 @@ def create_habitledger_tool() -> Tool:
     return Tool(function_declarations=[function_declaration])
 
 
-def create_runner(
+async def create_runner(
     user_id: str = "demo_user",
 ):
     """
-    Create an ADK runner with session management.
+    Create an ADK runner with async session management.
 
     This function initializes a Google GenAI client and creates an
-    InMemorySessionService for session state management.
+    InMemorySessionService for session state management with async operations.
 
     Args:
         user_id: User identifier for the session (default: "demo_user").
@@ -147,7 +148,7 @@ def create_runner(
                session service, Session object, and behaviour database.
 
     Example:
-        >>> client, service, session, behaviour_db = create_runner("user123")
+        >>> client, service, session, behaviour_db = await create_runner("user123")
         >>> memory = load_memory_from_session(session)
         >>> print(memory.user_id)
         user123
@@ -170,7 +171,7 @@ def create_runner(
     session_service = create_session_service()
 
     try:
-        session = session_service.get_session_sync(
+        session = await session_service.get_session(
             session_id=session_id,
             app_name=app_name,
             user_id=user_id,
@@ -186,7 +187,7 @@ def create_runner(
     except Exception:
         logger.info("Session not found, creating new one")
         # Session doesn't exist, create new one
-        session = session_service.create_session_sync(
+        session = await session_service.create_session(
             session_id=session_id,
             app_name=app_name,
             user_id=user_id,
@@ -208,9 +209,9 @@ def create_runner(
     return client, session_service, session, behaviour_db
 
 
-def run_cli() -> None:
+async def run_cli() -> None:
     """
-    Run the HabitLedger ADK agent in a simple CLI loop with session persistence.
+    Run the HabitLedger ADK agent in a simple async CLI loop with session persistence.
 
     This function provides a command-line interface for interacting with the
     HabitLedger agent. It uses ADK's InMemorySessionService to maintain session
@@ -218,6 +219,7 @@ def run_cli() -> None:
 
     The CLI accepts user input, sends it to the agent with tool support,
     displays coaching responses, and updates session memory after each turn.
+    Session events are tracked using async append_event for proper persistence.
 
     Example:
         Run from command line:
@@ -237,7 +239,7 @@ def run_cli() -> None:
 
     try:
         # Create runner with ADK session service
-        client, session_service, session, behaviour_db = create_runner(
+        client, session_service, session, behaviour_db = await create_runner(
             user_id="cli_demo_user"
         )
         model_name = get_adk_model_name()
@@ -335,8 +337,44 @@ def run_cli() -> None:
                 else:
                     print("\n🤖 Coach: [No response generated]")
 
-                # Note: session_service.append_event() is async and requires await
-                # For now, we rely on conversation_history in UserMemory for tracking
+                # Track conversation event in session
+                try:
+                    from datetime import datetime
+
+                    from google.adk.events import Event
+                    from google.genai.types import Content, Part
+
+                    event = Event(
+                        author="user",
+                        content=Content(
+                            parts=[Part(text=user_input)],
+                            role="user",
+                        ),
+                        custom_metadata={
+                            "type": "interaction",
+                            "agent_response": agent_response or "[No response]",
+                            "timestamp": datetime.now().isoformat(),
+                        },
+                    )
+                    await session_service.append_event(
+                        session=session,
+                        event=event,
+                    )
+                    logger.debug(
+                        "Session event appended",
+                        extra={
+                            "session_id": session.id,
+                            "event_type": "interaction",
+                        },
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to append session event: {e}",
+                        extra={
+                            "session_id": session.id,
+                            "error": str(e),
+                        },
+                    )
 
                 # Save updated memory to session
                 # The tool modifies the memory object in place, so we save it directly
@@ -382,4 +420,4 @@ def run_cli() -> None:
 
 
 if __name__ == "__main__":
-    run_cli()
+    asyncio.run(run_cli())
