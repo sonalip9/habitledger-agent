@@ -158,9 +158,8 @@ def get_api_key() -> str:
     # Try Kaggle Secrets first if on Kaggle
     if is_kaggle_environment():
         try:
-            from kaggle_secrets import (
-                UserSecretsClient,  # type: ignore # pylint: disable=import-error
-            )
+            # pylint: disable=import-error
+            from kaggle_secrets import UserSecretsClient  # type: ignore
 
             user_secrets = UserSecretsClient()
             api_key = user_secrets.get_secret("GOOGLE_API_KEY")
@@ -180,12 +179,12 @@ def get_api_key() -> str:
                 "Please add it via: Add-ons > Secrets > Add a new secret. "
                 "Use 'GOOGLE_API_KEY' as the label and your API key as the value."
             )
-        else:
-            raise ValueError(
-                "GOOGLE_API_KEY not found in environment variables. "
-                "Please set it in your .env file or environment. "
-                "Example: GOOGLE_API_KEY=your_api_key_here"
-            )
+
+        raise ValueError(
+            "GOOGLE_API_KEY not found in environment variables. "
+            "Please set it in your .env file or environment. "
+            "Example: GOOGLE_API_KEY=your_api_key_here"
+        )
 
     return api_key
 

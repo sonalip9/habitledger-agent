@@ -33,16 +33,16 @@ Instead of offering financial advice, HabitLedger acts as a **behavioural money 
 
 ### Why an Agent?
 
-1. **Continuous Interaction**  
+1. **Continuous Interaction**
    Financial habits aren't built in a single session. HabitLedger engages users over days and weeks through check-ins, reflections, and progress tracking.
 
-2. **Contextual Memory**  
+2. **Contextual Memory**
    The agent remembers your goals, past struggles, and progress. It recognizes patterns (like "end-of-month overspending") and adapts interventions accordingly.
 
-3. **Behaviour-Driven Interventions**  
+3. **Behaviour-Driven Interventions**
    Using principles from behavioural science (habit loops, loss aversion, friction reduction, commitment devices), HabitLedger suggests small, actionable changes tailored to your situation—not generic tips.
 
-4. **Personalized & Adaptive**  
+4. **Personalized & Adaptive**
    The agent analyzes your behaviour, identifies underlying biases, and responds with interventions that match your specific challenges and context.
 
 ### What It Does
@@ -57,10 +57,10 @@ Instead of offering financial advice, HabitLedger acts as a **behavioural money 
 
 ### What HabitLedger Helps You Do
 
-- Build consistency with savings or SIPs  
-- Reduce impulse spending (for example, food delivery or online shopping)  
-- Set and maintain simple budgeting routines  
-- Reflect on emotional triggers behind money decisions  
+- Build consistency with savings or SIPs
+- Reduce impulse spending (for example, food delivery or online shopping)
+- Set and maintain simple budgeting routines
+- Reflect on emotional triggers behind money decisions
 - Track progress over days or weeks with streak tracking
 - Receive personalized, actionable interventions (not generic advice)
 
@@ -72,11 +72,11 @@ Instead of offering financial advice, HabitLedger acts as a **behavioural money 
 
 This project demonstrates the key capabilities expected for the Agents Intensive competition:
 
-✅ **LLM-powered agents** — Gemini models for reasoning and response generation  
-✅ **Multi-agent system** — Coach orchestrator + Behavior Analysis agent  
-✅ **Custom tools** — `behaviour_db_tool` as ADK FunctionTool for knowledge retrieval  
-✅ **Sessions & Memory** — InMemorySessionService + JSON persistence for user state  
-✅ **Observability** — Structured logging with 10+ event types for transparency  
+✅ **LLM-powered agents** — Gemini models for reasoning and response generation
+✅ **Multi-agent system** — Coach orchestrator + Behavior Analysis agent
+✅ **Custom tools** — `behaviour_db_tool` as ADK FunctionTool for knowledge retrieval
+✅ **Sessions & Memory** — InMemorySessionService + JSON persistence for user state
+✅ **Observability** — Structured logging with 10+ event types for transparency
 ✅ **Agent evaluation** — 20-scenario test suite with detection accuracy metrics
 
 **Total: 6/6 required features** (minimum 3 required ✓)
@@ -89,19 +89,19 @@ See [Evaluation Results](docs/EVALUATION_RESULTS.md) for detailed metrics and te
 
 HabitLedger uses ideas from:
 
-- Habit loops (cue → routine → reward)  
-- Commitment devices  
-- Temptation bundling  
-- Loss aversion and risk perception  
-- Friction reduction (making good habits easier, bad habits harder)  
-- Default effect (helpful defaults)  
-- Micro-habits and “2-minute rules”  
+- Habit loops (cue → routine → reward)
+- Commitment devices
+- Temptation bundling
+- Loss aversion and risk perception
+- Friction reduction (making good habits easier, bad habits harder)
+- Default effect (helpful defaults)
+- Micro-habits and “2-minute rules”
 
 These principles are stored in a small internal **behaviour knowledge base**, which the agent uses to:
 
-- Interpret user situations  
-- Identify possible behavioural biases  
-- Suggest concrete, tailored interventions  
+- Interpret user situations
+- Identify possible behavioural biases
+- Suggest concrete, tailored interventions
 
 ---
 
@@ -152,7 +152,7 @@ Daily check-ins, weekly reflections, and personalised micro-habit suggestions wi
 
 **Example Intervention:**
 
-> **User:** "I keep ordering food delivery when I'm stressed after work."  
+> **User:** "I keep ordering food delivery when I'm stressed after work."
 > **Agent:** "That sounds like a *habit loop* — stress is your cue, delivery is the routine, and comfort food is the reward. Let's try *substitution*: when you feel the stress cue, try a 5-minute walk before deciding. This breaks the automatic routine while keeping the reward (relaxation)."
 
 ### 2. Behaviour Analysis
@@ -211,8 +211,8 @@ Persistent user state with goals, streaks, struggles, and intervention effective
 
 ### 6. Demo-Friendly Notebook
 
-- A clean Jupyter notebook for showcasing the agent  
-- Sample dialogues and pre-defined scenarios  
+- A clean Jupyter notebook for showcasing the agent
+- Sample dialogues and pre-defined scenarios
 - Easy for reviewers to run and understand
 
 ---
@@ -247,6 +247,14 @@ habitledger/
 
 ## 🛠️ Installation
 
+### Prerequisites
+
+- **Python 3.13.2** (exact version required)
+- **Git** (for version control)
+- **Virtual environment** support
+
+### Quick Setup
+
 1. **Clone the repository**
 
    ```bash
@@ -254,7 +262,15 @@ habitledger/
    cd habitledger-agent
    ```
 
-2. **Create and activate a virtual environment**
+2. **Verify your setup**
+
+   ```bash
+   ./verify_setup.sh
+   ```
+
+   This script will check if you have the correct Python version, virtual environment, and tools installed.
+
+3. **Create and activate a virtual environment**
 
    ```bash
    python -m venv .venv
@@ -266,31 +282,49 @@ habitledger/
    .venv\Scripts\activate
    ```
 
-3. **Install dependencies**
+4. **Install dependencies**
 
    ```bash
+   pip install --upgrade pip
    pip install -r requirements.txt
    ```
 
-4. **Set up environment variables**
+5. **Setup nbstripout (for notebook hygiene)**
+
+   ```bash
+   nbstripout --install
+   ```
+
+   This ensures notebook outputs and metadata are automatically stripped before git commits.
+
+6. **(Optional) Install pre-commit hooks**
+
+   ```bash
+   pip install pre-commit
+   pre-commit install
+   ```
+
+   This automatically formats code and strips notebooks on every commit.
+
+7. **Set up environment variables**
 
    Create a `.env` file in the project root:
 
    ```text
    # Required: Google API key for LLM-based analysis
    GOOGLE_API_KEY=your_api_key_here
-   
+
    # Optional: Set the model to use (default: gemini-1.5-flash)
    # gemini-1.5-flash is recommended for better quota management
    GOOGLE_ADK_MODEL=gemini-1.5-flash
-   
+
    # Optional: Rate limiting between LLM calls (default: 1.0 seconds)
    # Increase this if you're hitting quota limits on free tier
    LLM_MIN_CALL_INTERVAL=1.0
-   
+
    # Optional: Set logging level (default: INFO)
    LOG_LEVEL=INFO
-   
+
    # Optional: Enable structured logging for observability tools (default: false)
    STRUCTURED_LOGGING=false
    ```
@@ -301,13 +335,15 @@ habitledger/
 
    📚 **See [docs/QUOTA_MANAGEMENT.md](docs/QUOTA_MANAGEMENT.md) for detailed quota management guidance.**
 
+📚 **For detailed setup instructions and troubleshooting, see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**
+
 ---
 
 ## 🧭 Competition Track & Scoring Mapping
 
 **Track Selected: Concierge Agents**
 
-This track covers agents designed to help individuals manage and improve aspects of their personal lives  
+This track covers agents designed to help individuals manage and improve aspects of their personal lives
 —for example: travel planning, meal prep, shopping automation, habit-building, or other daily routines.
 
 **HabitLedger fits this track perfectly** because it is a behavioural money coach designed to help users:
@@ -440,10 +476,10 @@ For full evaluation methodology and results, see [docs/EVALUATION_RESULTS.md](do
 
 ### UI/UX Improvements
 
-- [ ] Simple web UI using Streamlit or FastAPI  
-- [ ] Visualisation of habit streaks and progress  
-- [ ] More detailed behaviour taxonomies and interventions  
-- [ ] Optional integration with budgeting or expense-tracking tools  
+- [ ] Simple web UI using Streamlit or FastAPI
+- [ ] Visualisation of habit streaks and progress
+- [ ] More detailed behaviour taxonomies and interventions
+- [ ] Optional integration with budgeting or expense-tracking tools
 - [ ] Configurable "modes" for different types of users (students, early-career, families)
 - [ ] Improve CLI to be more conversational with clear end outputs (reduce loop-like behavior, ensure interventions are surfaced)
 
@@ -493,9 +529,9 @@ For full evaluation methodology and results, see [docs/EVALUATION_RESULTS.md](do
 
 ## ⚠️ Disclaimer
 
-- This project does **not** provide personalised financial, legal, or tax advice.  
-- Behaviour classification may be imperfect or approximate.  
-- The agent is not a substitute for therapy, counselling, or professional financial planning.  
+- This project does **not** provide personalised financial, legal, or tax advice.
+- Behaviour classification may be imperfect or approximate.
+- The agent is not a substitute for therapy, counselling, or professional financial planning.
 
 ---
 

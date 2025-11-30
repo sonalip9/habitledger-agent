@@ -2,43 +2,150 @@
 
 This guide covers setup, development workflows, testing, and migration guidelines for HabitLedger contributors and users upgrading from older versions.
 
+## Table of Contents
+
+- [Development Setup](#development-setup)
+  - [Prerequisites](#prerequisites)
+  - [Quick Setup](#quick-setup)
+  - [Full Setup Instructions](#full-setup-instructions)
+  - [Why These Requirements Matter](#why-these-requirements-matter)
+  - [Configuration Files Overview](#configuration-files-overview)
+  - [Enforcement Mechanisms](#enforcement-mechanisms)
+  - [Troubleshooting Setup](#troubleshooting-setup)
+- [Quick Reference](#quick-reference)
+  - [Daily Workflow](#daily-workflow)
+  - [Common Commands](#common-commands)
+  - [Git Commit Message Format](#git-commit-message-format)
+  - [One-Command Setup](#one-command-setup)
+  - [Health Check Before PR](#health-check-before-pr)
+- [Development Workflow](#development-workflow)
+  - [Code Organization Principles](#code-organization-principles)
+  - [Adding a New Feature](#adding-a-new-feature)
+  - [Code Style](#code-style)
+- [Project Structure](#project-structure)
+- [Testing](#testing)
+  - [Running Tests](#running-tests)
+  - [Test Coverage Goals](#test-coverage-goals)
+  - [Writing Tests](#writing-tests)
+  - [Test Categories](#test-categories)
+- [Contributing](#contributing)
+  - [Contribution Workflow](#contribution-workflow)
+  - [Pull Request Guidelines](#pull-request-guidelines)
+  - [Code Review Checklist](#code-review-checklist)
+  - [Getting Help](#getting-help)
+- [Development Tips](#development-tips)
+  - [Debugging](#debugging)
+  - [Performance Profiling](#performance-profiling)
+  - [IDE Setup](#ide-setup)
+  - [Useful Commands](#useful-commands)
+- [Emergency Recovery](#emergency-recovery)
+  - [Reset Everything](#reset-everything)
+  - [Rollback to Previous Version](#rollback-to-previous-version)
+
 ## Development Setup
 
 ### Prerequisites
 
-- Python 3.10 or higher
-- Git
-- Virtual environment tool (venv, conda, or similar)
-- Google API key for Gemini (optional but recommended)
+- **Python 3.13.2** (exact version required)
+- **Git** (for version control)
+- **Virtual environment** support
 
-### Initial Setup
+### Quick Setup
 
-1. **Clone the repository**
+Run the automated setup verification:
+
+```bash
+./verify_setup.sh
+```
+
+This script checks if you have the correct Python version, virtual environment, and tools installed.
+
+### Full Setup Instructions
+
+1. Install Python 3.13.2
+
+    **Using pyenv (recommended):**
+
+    ```bash
+    # Install pyenv if not already installed
+    curl https://pyenv.run | bash
+
+    # Install Python 3.13.2
+    pyenv install 3.13.2
+
+    # Set as local version for this project
+    pyenv local 3.13.2
+
+    # Verify
+    python --version  # Should output: Python 3.13.2
+    ```
+
+    **Alternative methods:**
+
+    - **Ubuntu/Debian:** `sudo apt install python3.13`
+    - **macOS (Homebrew):** `brew install python@3.13`
+    - **Windows:** Download from [python.org](https://www.python.org/downloads/release/python-3132/)
+
+2. Clone Repository
 
     ```bash
     git clone https://github.com/sonalip9/habitledger-agent.git
     cd habitledger-agent
     ```
 
-2. **Create virtual environment**
+3. Create Virtual Environment
 
     ```bash
+    # Create .venv
     python -m venv .venv
+    # Activate it
+    source .venv/bin/activate  # Linux/macOS
+    .venv\Scripts\activate     # Windows
 
-    # Activate on macOS/Linux
-    source .venv/bin/activate
-
-    # Activate on Windows
-    .venv\Scripts\activate
+    # Verify Python version in venv
+    python --version  # Should still be 3.13.2
     ```
 
-3. **Install dependencies**
+4. Install Dependencies
 
     ```bash
+    # Upgrade pip
+    pip install --upgrade pip
+    # Install project dependencies
     pip install -r requirements.txt
     ```
 
-4. **Configure environment**
+5. Setup nbstripout
+
+    nbstripout automatically strips output and metadata from Jupyter notebooks before committing to git.
+
+    ```bash
+    # Install nbstripout (should already be in requirements.txt)
+    pip install nbstripout
+
+    # Configure for this repository
+    nbstripout --install
+
+    # Verify installation
+    nbstripout --status
+    ```
+
+6. (Optional) Setup Pre-commit Hooks
+
+    Pre-commit hooks automatically format code and strip notebooks on every commit:
+
+    ```bash
+    # Install pre-commit
+    pip install pre-commit
+
+    # Install the hooks
+    pre-commit install
+
+    # Test the hooks (optional)
+    pre-commit run --all-files
+    ```
+
+7. Configure Environment Variables
 
     Create `.env` file:
 
@@ -53,15 +160,120 @@ This guide covers setup, development workflows, testing, and migration guideline
     STRUCTURED_LOGGING=false
     ```
 
-5. **Verify installation**
+8. Verify Installation
 
     ```bash
+    # Run setup verification
+    ./verify_setup.sh
+
     # Run tests
     pytest tests/
 
     # Try the CLI
     python -m src.coach
     ```
+
+### Why These Requirements Matter
+
+**Python 3.13.2 (Exact Version):**
+
+- Ensures consistent behavior across all development environments
+- Prevents "works on my machine" issues
+- Matches production deployment requirements
+- Easier debugging with consistent Python version
+
+**Virtual Environment (.venv):**
+
+- Isolates project dependencies from system packages
+- Prevents conflicts between different projects
+- Makes dependency management reproducible
+- Easier to reset if something breaks
+
+**nbstripout (Notebook Hygiene):**
+
+- Keeps git history clean (no large output diffs)
+- Reduces repository size significantly
+- Prevents merge conflicts from notebook metadata
+- Protects against accidental credential leaks in outputs
+- Improves code review quality (focus on code, not outputs)
+
+### Configuration Files Overview
+
+The project includes several configuration files that enforce these standards:
+
+| File | Purpose | Enforces |
+|------|---------|----------|
+| `.python-version` | Specifies Python 3.13.2 for pyenv | Python version |
+| `pyproject.toml` | Tool configurations and version constraints | Python ≥3.13.2 |
+| `.pre-commit-config.yaml` | Git hooks (nbstripout, black, ruff) | Code quality |
+| `.vscode/settings.json` | VS Code workspace settings | .venv, formatters |
+| `.github/copilot-instructions.md` | AI assistant guidelines | All standards |
+
+### Enforcement Mechanisms
+
+The project uses **layered enforcement** to ensure standards are followed:
+
+1. **pyenv + `.python-version`** → Auto-selects Python 3.13.2 when you `cd` into the project
+2. **`pyproject.toml`** → pip rejects installation with older Python versions
+3. **VS Code settings** → Automatically uses .venv and correct Python
+4. **Pre-commit hooks** → Blocks commits that don't meet quality standards
+5. **Git filters** → nbstripout strips notebooks automatically on `git add`
+6. **Documentation** → Clear guidelines in README and Copilot instructions
+7. **Verification script** → `./verify_setup.sh` validates everything
+
+### Troubleshooting Setup
+
+**Wrong Python Version:**
+
+```bash
+# Check current version
+python --version
+
+# If wrong, install 3.13.2
+pyenv install 3.13.2
+pyenv local 3.13.2
+
+# Recreate venv
+rm -rf .venv
+python -m venv .venv
+source .venv/bin/activate
+```
+
+**Virtual Environment Not Activating:**
+
+```bash
+# Linux/macOS
+source .venv/bin/activate
+
+# Windows
+.venv\Scripts\activate
+
+# If VS Code isn't using the right Python:
+# Press Ctrl+Shift+P → "Python: Select Interpreter" → choose .venv
+```
+
+**nbstripout Not Working:**
+
+```bash
+# Reinstall and reconfigure
+pip install --force-reinstall nbstripout
+nbstripout --install --attributes .gitattributes
+
+# Verify
+nbstripout --status
+```
+
+**Pre-commit Hooks Failing:**
+
+```bash
+# Update hooks to latest versions
+pre-commit autoupdate
+
+# Run manually to see errors
+pre-commit run --all-files
+
+# Fix issues, then commit again
+```
 
 ## Project Structure
 
@@ -123,6 +335,110 @@ habitledger-agent/
 - **notebooks/**: Interactive demos and examples
 - **examples/**: Standalone example scripts
 
+## Quick Reference
+
+### Daily Workflow
+
+```bash
+# Start working
+cd habitledger-agent
+source .venv/bin/activate  # Auto-activates in VS Code
+
+# Before committing
+./verify_setup.sh  # Optional: check everything is OK
+
+# Commit (pre-commit hooks run automatically)
+git add .
+git commit -m "feat(memory): add user preference tracking"
+```
+
+### Common Commands
+
+| Task | Command |
+|------|---------|
+| Activate venv | `source .venv/bin/activate` |
+| Check Python version | `python --version` |
+| Install new package | `pip install <package> && pip freeze > requirements.txt` |
+| Run tests | `pytest tests/` |
+| Run tests with coverage | `pytest tests/ --cov=src --cov-report=html` |
+| Format code | `black src/ tests/` |
+| Lint code | `ruff check src/ tests/` |
+| Type check | `mypy src/` |
+| Strip notebook | `nbstripout notebooks/demo.ipynb` |
+| Check setup | `./verify_setup.sh` |
+| Run pre-commit | `pre-commit run --all-files` |
+
+### Git Commit Message Format
+
+Follow **Conventional Commits** pattern:
+
+```text
+<type>(<scope>): <subject>
+
+[optional body]
+
+[optional footer]
+```
+
+**Types:**
+
+- `feat`: New feature
+- `fix`: Bug fix
+- `refactor`: Code restructuring
+- `docs`: Documentation
+- `test`: Tests
+- `chore`: Maintenance
+- `style`: Formatting
+- `perf`: Performance
+- `ci`: CI/CD
+- `build`: Build system
+
+**Examples:**
+
+```bash
+feat(engine): add adaptive weighting based on intervention history
+fix(memory): handle missing last_updated field in streak data
+refactor(coach): decompose run_once into smaller helper functions
+docs(architecture): add component interaction flowchart
+test(models): add serialization tests for all dataclasses
+chore(deps): upgrade google-adk to 0.1.5
+```
+
+### One-Command Setup
+
+For fresh setup on a new machine:
+
+```bash
+python3.13 -m venv .venv && \
+source .venv/bin/activate && \
+pip install --upgrade pip && \
+pip install -r requirements.txt && \
+nbstripout --install && \
+pre-commit install && \
+./verify_setup.sh
+```
+
+### Health Check Before PR
+
+Run before creating a pull request:
+
+```bash
+# 1. Verify setup
+./verify_setup.sh
+
+# 2. Run tests with coverage
+pytest tests/ --cov=src
+
+# 3. Check code quality
+black --check src/ tests/
+ruff check src/ tests/
+
+# 4. Check notebooks
+nbstripout --check notebooks/*.ipynb
+
+# All should pass ✅
+```
+
 ## Development Workflow
 
 ### Code Organization Principles
@@ -151,10 +467,10 @@ habitledger-agent/
         """Description of the new feature."""
         field1: str
         field2: int
-        
+
         def to_dict(self) -> dict[str, Any]:
             return {"field1": self.field1, "field2": self.field2}
-        
+
         @classmethod
         def from_dict(cls, data: dict[str, Any]) -> "NewFeature":
             return cls(field1=data["field1"], field2=data["field2"])
@@ -370,4 +686,39 @@ pytest tests/ -m unit
 # Generate coverage HTML report
 pytest tests/ --cov=src --cov-report=html
 open htmlcov/index.html
+```
+
+## Emergency Recovery
+
+### Reset Everything
+
+If your environment is broken:
+
+```bash
+# Nuclear option (destroys local changes)
+git clean -fdx  # Remove all untracked files
+rm -rf .venv    # Remove virtual environment
+
+# Then re-setup:
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+nbstripout --install
+pre-commit install
+./verify_setup.sh
+```
+
+### Rollback to Previous Version
+
+If you encounter breaking changes:
+
+```bash
+# Backup your data
+cp data/user_memory.json data/user_memory.json.backup
+
+# Check out previous version
+git checkout v1.0.0  # Replace with your previous version
+
+# Restore dependencies
+pip install -r requirements.txt
 ```

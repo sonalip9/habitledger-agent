@@ -4,6 +4,14 @@
 
 set -e  # Exit on first error
 
+# Fetch arg passed to script
+# If "run-tests" is passed, run the test suite as well
+RUN_TESTS=false
+if [ "$1" == "run-tests" ]; then
+    RUN_TESTS=true
+fi
+
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -11,9 +19,9 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-echo "╔════════════════════════════════════════════════════════════╗"
+echo "╔═══════════════════════════════════════════════════════════╗"
 echo "║        HABITLEDGER CODE QUALITY CHECK                     ║"
-echo "╚════════════════════════════════════════════════════════════╝"
+echo "╚═══════════════════════════════════════════════════════════╝"
 echo ""
 
 # Track overall status
@@ -43,7 +51,7 @@ echo ""
 
 # 3. Mypy - Type Checking
 echo -e "${BLUE}3️⃣  Checking types (Mypy)...${NC}"
-if mypy src/ --no-error-summary 2>&1 | grep -q "Success"; then
+if mypy src/ 2>&1 | grep -q "Success"; then
     echo -e "${GREEN}✅ Mypy: No type errors found${NC}"
 else
     echo -e "${RED}❌ Mypy: Type errors found${NC}"
@@ -54,8 +62,7 @@ echo ""
 
 # 4. Pylint - Code Analysis
 echo -e "${BLUE}4️⃣  Running code analysis (Pylint)...${NC}"
-PYLINT_OUTPUT=$(pylint src/ 2>&1)
-PYLINT_SCORE=$(echo "$PYLINT_OUTPUT" | grep -oP 'rated at \K[0-9.]+' | head -1)
+PYLINT_SCORE=$(pylint src/ 2>&1 | grep -oP 'rated at \K[0-9.]+' | head -1)
 if [ -n "$PYLINT_SCORE" ]; then
     # Check if score is >= 9.0
     if awk 'BEGIN {exit !('$PYLINT_SCORE' >= 9.0)}'; then
@@ -70,17 +77,20 @@ else
 fi
 echo ""
 
+
 # 5. Pytest - Test Suite
-echo -e "${BLUE}5️⃣  Running test suite (Pytest)...${NC}"
-if python -m pytest tests/ -q --tb=short 2>&1 | tee /tmp/pytest_output.txt | tail -1 | grep -q "passed"; then
-    PASSED=$(grep -oP '\d+(?= passed)' /tmp/pytest_output.txt | tail -1)
-    echo -e "${GREEN}✅ Pytest: $PASSED tests passed${NC}"
-else
-    echo -e "${RED}❌ Pytest: Some tests failed${NC}"
-    python -m pytest tests/ -v --tb=short
-    EXIT_CODE=1
+if [ "$RUN_TESTS" = true ]; then
+    echo -e "${BLUE}5️⃣  Running test suite (Pytest)...${NC}"
+    if python -m pytest tests/ -q --tb=short 2>&1 | tee /tmp/pytest_output.txt | tail -1 | grep -q "passed"; then
+        PASSED=$(grep -oP '\d+(?= passed)' /tmp/pytest_output.txt | tail -1)
+        echo -e "${GREEN}✅ Pytest: $PASSED tests passed${NC}"
+    else
+        echo -e "${RED}❌ Pytest: Some tests failed${NC}"
+        python -m pytest tests/ -v --tb=short
+        EXIT_CODE=1
+    fi
+    echo ""
 fi
-echo ""
 
 # Summary
 echo "════════════════════════════════════════════════════════════"

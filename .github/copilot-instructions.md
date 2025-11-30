@@ -4,10 +4,67 @@
 
 HabitLedger is an AI-powered behavioural money coach built using Google's Agent Development Kit (ADK). This project follows clean architecture principles with strongly-typed domain models, comprehensive testing, and detailed observability.
 
-**Project Type:** AI Agent (Concierge Track - Kaggle Competition)  
-**Primary Language:** Python 3.10+  
-**Framework:** Google ADK, Gemini 2.0 Flash  
+**Project Type:** AI Agent (Concierge Track - Kaggle Competition)
+**Primary Language:** Python 3.13.2
+**Framework:** Google ADK, Gemini 2.0 Flash
 **Architecture:** Modular, event-driven, stateful agent system
+
+## Development Environment Setup
+
+**CRITICAL: Before performing ANY actions in this project, you MUST:**
+
+1. **Verify Python 3.13.2 is installed:**
+   ```bash
+   python --version  # Should output Python 3.13.2
+   ```
+   If not installed, guide the user to install Python 3.13.2 first.
+
+2. **Create and activate virtual environment (.venv):**
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # Linux/macOS
+   # OR
+   .venv\Scripts\activate     # Windows
+   ```
+
+3. **Install dependencies:**
+   ```bash
+   pip install --upgrade pip
+   pip install -r requirements.txt
+   ```
+
+4. **Set up nbstripout for notebooks (if not already configured):**
+   ```bash
+   pip install nbstripout
+   nbstripout --install
+   ```
+   This ensures only clean notebook cells (without outputs/metadata) are committed to git.
+
+5. **Verify setup:**
+   ```bash
+   # Check Python version in venv
+   python --version
+
+   # Check nbstripout is installed
+   nbstripout --status
+   ```
+
+**NEVER proceed with coding tasks until the environment is properly set up.**
+
+### Why These Requirements Matter
+
+- **Python 3.13.2**: Ensures consistent behavior across all development environments and matches production deployment requirements
+- **.venv**: Isolates project dependencies, prevents conflicts with system packages
+- **nbstripout**: Keeps git history clean by stripping notebook outputs/metadata, reducing merge conflicts and repository size
+
+### Automated Enforcement
+
+The project includes configuration files that enforce these standards:
+
+- `.python-version` - Specifies exact Python version for pyenv users
+- `pyproject.toml` - Contains tool configurations and Python version constraints
+- `.pre-commit-config.yaml` - Runs nbstripout automatically on commit
+- `.vscode/settings.json` - Configures VS Code to use .venv automatically
 
 ## Core Principles
 
@@ -85,7 +142,7 @@ class Goal:
     target: str
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     completed: bool = False
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "description": self.description,
@@ -93,7 +150,7 @@ class Goal:
             "created_at": self.created_at,
             "completed": self.completed
         }
-    
+
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Goal":
         return cls(
@@ -279,14 +336,14 @@ Use fixtures from `conftest.py`:
 def test_record_interaction(empty_memory, sample_behaviour_db):
     """Test recording user interaction updates memory correctly."""
     principle = sample_behaviour_db.principles[0]
-    
+
     MemoryService.record_interaction(
         memory=empty_memory,
         principle_id=principle.id,
         success=True,
         context="User completed savings goal"
     )
-    
+
     assert empty_memory.intervention_feedback[principle.id].successes == 1
     assert empty_memory.intervention_feedback[principle.id].success_rate == 1.0
 ```
@@ -340,10 +397,10 @@ class NewFeature:
     field1: str
     field2: int
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {"field1": self.field1, "field2": self.field2}
-    
+
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "NewFeature":
         return cls(field1=data["field1"], field2=data["field2"])
@@ -355,7 +412,7 @@ class NewFeature:
 class UserMemory:
     # ... existing fields ...
     new_features: list[NewFeature] = field(default_factory=list)
-    
+
     def to_dict(self) -> dict[str, Any]:
         data = {
             # ... existing serialization ...
@@ -370,7 +427,7 @@ class TestNewFeature:
     def test_creation(self):
         feature = NewFeature(field1="value", field2=42)
         assert feature.field1 == "value"
-    
+
     def test_serialization(self):
         feature = NewFeature(field1="value", field2=42)
         data = feature.to_dict()
@@ -387,11 +444,11 @@ class MemoryService:
     @staticmethod
     def new_operation(memory: UserMemory, param: str) -> ResultType:
         """Description of what this operation does.
-        
+
         Args:
             memory: User memory to operate on
             param: Description of parameter
-            
+
         Returns:
             Description of return value
         """
@@ -455,7 +512,7 @@ def shared_tool_function():
 from src.adk_config import SHARED_CONSTANT
 from src.adk_tools import shared_tool_function
 
-# habitledger_adk/agent.py  
+# habitledger_adk/agent.py
 from src.adk_config import SHARED_CONSTANT
 from src.adk_tools import shared_tool_function
 ```
@@ -475,19 +532,19 @@ def analyse_behaviour(
     behaviour_db: BehaviourDatabase
 ) -> AnalysisResult:
     """Analyze user behaviour and detect relevant principles.
-    
+
     Attempts LLM-based analysis first, falls back to keyword matching
     if LLM is unavailable or returns invalid results.
-    
+
     Args:
         user_input: User message describing their financial situation
         memory: User memory with goals, streaks, and history
         behaviour_db: Behaviour principles knowledge base
-        
+
     Returns:
         AnalysisResult containing detected principle, interventions,
         confidence score, and reasoning
-        
+
     Raises:
         ValueError: If behaviour_db is empty or invalid
     """
@@ -558,7 +615,7 @@ def analyse_behaviour(user_input: str, memory: UserMemory, db: BehaviourDatabase
             return result
     except Exception as e:
         logger.warning(f"LLM analysis failed: {e}, falling back to keywords")
-    
+
     # Fall back to keyword-based analysis
     return _analyse_behaviour_keyword(user_input, db)
 ```
@@ -617,14 +674,14 @@ MemoryService.record_interaction(
 def run_once(user_input: str, memory: UserMemory, db: BehaviourDatabase) -> str:
     """Process user input and return response."""
     # ... process input ...
-    
+
     # Update memory
     memory.add_conversation_turn("user", user_input)
     memory.add_conversation_turn("assistant", response)
-    
+
     # Save to disk
     memory.save_to_file()
-    
+
     return response
 ```
 
@@ -636,12 +693,12 @@ Always implement `to_dict()` and `from_dict()` for all domain models:
 @dataclass
 class ComplexModel:
     nested_objects: list[OtherModel]
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "nested_objects": [obj.to_dict() for obj in self.nested_objects]
         }
-    
+
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ComplexModel":
         return cls(

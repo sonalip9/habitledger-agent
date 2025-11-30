@@ -1,10 +1,46 @@
 {
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+    "python.terminal.activateEnvironment": true,
+    "python.terminal.activateEnvInCurrentTerminal": true,
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/src"
+    ],
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.typeCheckingMode": "basic",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": "explicit"
+    },
+    "ruff.enable": true,
+    "ruff.lint.enable": true,
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        }
+    },
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/*.pyc": true,
+        "**/.pytest_cache": true,
+        "**/.ruff_cache": true,
+        "**/.mypy_cache": true
+    },
+    "files.watcherExclude": {
+        "**/.venv/**": true,
+        "**/venv/**": true,
+        "**/__pycache__/**": true,
+        "**/.pytest_cache/**": true
+    },
+    "jupyter.notebookFileRoot": "${workspaceFolder}",
+    "notebook.formatOnSave.enabled": true,
+    "notebook.codeActionsOnSave": {
+        "notebook.source.organizeImports": "explicit"
+    },
     "cSpell.words": [
-        "behaviour",
-        "behavioural",
         "genai",
         "habitledger",
-        "Kaggle",
-        "personalised"
+        "Kaggle"
     ]
 }
