@@ -5,13 +5,23 @@ This module tests the main coaching functions including response generation,
 session summaries, and interaction with the ADK agent.
 """
 
+import pytest
+
 from src.coach import (
+    CONFIDENCE_THRESHOLD,
+    LOW_CONFIDENCE_THRESHOLD,
+    MAX_INTERVENTIONS_PER_RESPONSE,
+    _analyze_user_behavior,
+    _build_template_response,
     _generate_clarifying_questions,
     _get_clarifying_questions_for_principle,
+    _handle_low_confidence_case,
+    _validate_coach_inputs,
     generate_session_summary,
     run_once,
 )
-from src.models import BehaviourPattern, ConversationRole
+from src.memory import UserMemory
+from src.models import AnalysisResult, BehaviourPattern, ConversationRole
 
 
 class TestRunOnce:
@@ -386,3 +396,335 @@ class TestGetClarifyingQuestionsForPrinciple:
             keyword in combined
             for keyword in ["trying", "situation", "achieve", "challenge", "tried"]
         )
+
+
+# ============================================================================
+# Tests for decomposed helper functions (_validate_coach_inputs,
+# _analyze_user_behavior, _handle_low_confidence_case, _build_template_response)
+# ============================================================================
+
+
+def get_minimal_behaviour_db():
+    """Create minimal valid behaviour database for testing."""
+    return {
+        "principles": [
+            {
+                "id": "friction_increase",
+                "name": "Friction Increase",
+                "description": "Make bad habits harder",
+                "typical_triggers": ["delivery", "shopping"],
+                "interventions": ["Delete apps", "Remove saved cards"],
+            }
+        ]
+    }
+
+
+class TestModuleConstants:
+    """Test module-level constants are defined correctly."""
+
+    def test_confidence_threshold_defined(self):
+        """Test CONFIDENCE_THRESHOLD constant exists and is reasonable."""
+        assert CONFIDENCE_THRESHOLD == 0.6
+        assert 0 < CONFIDENCE_THRESHOLD < 1
+
+    def test_low_confidence_threshold_defined(self):
+        """Test LOW_CONFIDENCE_THRESHOLD constant exists and is reasonable."""
+        assert LOW_CONFIDENCE_THRESHOLD == 0.4
+        assert 0 < LOW_CONFIDENCE_THRESHOLD < CONFIDENCE_THRESHOLD
+
+    def test_max_interventions_defined(self):
+        """Test MAX_INTERVENTIONS_PER_RESPONSE constant exists."""
+        assert MAX_INTERVENTIONS_PER_RESPONSE == 3
+        assert MAX_INTERVENTIONS_PER_RESPONSE > 0
+
+
+class TestValidateCoachInputs:
+    """Tests for _validate_coach_inputs function."""
+
+    def test_valid_inputs_pass(self):
+        """Test that valid inputs don't raise exceptions."""
+        memory = UserMemory(user_id="test")
+        behaviour_db = get_minimal_behaviour_db()
+
+        # Should not raise
+        _validate_coach_inputs("Hello", memory, behaviour_db)
+
+    def test_empty_user_input_raises_error(self):
+        """Test that empty user input raises ValueError."""
+        memory = UserMemory(user_id="test")
+        behaviour_db = get_minimal_behaviour_db()
+
+        with pytest.raises(ValueError, match="cannot be empty"):
+            _validate_coach_inputs("", memory, behaviour_db)
+
+    def test_whitespace_only_input_raises_error(self):
+        """Test that whitespace-only input raises ValueError."""
+        memory = UserMemory(user_id="test")
+        behaviour_db = get_minimal_behaviour_db()
+
+        with pytest.raises(ValueError, match="cannot be empty"):
+            _validate_coach_inputs("   ", memory, behaviour_db)
+
+    def test_invalid_memory_type_raises_error(self):
+        """Test that non-UserMemory object raises ValueError."""
+        behaviour_db = get_minimal_behaviour_db()
+
+        with pytest.raises(ValueError, match="must be a UserMemory instance"):
+            _validate_coach_inputs("Hello", {}, behaviour_db)  # type: ignore
+
+    def test_invalid_behaviour_db_type_raises_error(self):
+        """Test that non-dict behaviour_db raises ValueError."""
+        memory = UserMemory(user_id="test")
+
+        with pytest.raises(ValueError, match="must be a dict"):
+            _validate_coach_inputs("Hello", memory, [])  # type: ignore
+
+    def test_missing_principles_key_raises_error(self):
+        """Test that behaviour_db without 'principles' raises ValueError."""
+        memory = UserMemory(user_id="test")
+
+        with pytest.raises(ValueError, match="must contain 'principles'"):
+            _validate_coach_inputs("Hello", memory, {})
+
+    def test_empty_principles_list_raises_error(self):
+        """Test that behaviour_db with empty principles raises ValueError."""
+        memory = UserMemory(user_id="test")
+
+        with pytest.raises(ValueError, match="cannot be empty"):
+            _validate_coach_inputs("Hello", memory, {"principles": []})
+
+
+class TestAnalyzeUserBehavior:
+    """Tests for _analyze_user_behavior function."""
+
+    def test_returns_analysis_result(self):
+        """Test that function returns AnalysisResult instance."""
+        memory = UserMemory(user_id="test")
+        behaviour_db = get_minimal_behaviour_db()
+
+        result = _analyze_user_behavior(
+            "I keep ordering food delivery", memory, behaviour_db
+        )
+
+        assert isinstance(result, AnalysisResult)
+
+    def test_analysis_result_has_required_fields(self):
+        """Test that returned AnalysisResult has all required fields."""
+        memory = UserMemory(user_id="test")
+        behaviour_db = get_minimal_behaviour_db()
+
+        result = _analyze_user_behavior(
+            "I keep ordering food delivery", memory, behaviour_db
+        )
+
+        assert hasattr(result, "detected_principle_id")
+        assert hasattr(result, "reason")
+        assert hasattr(result, "intervention_suggestions")
+        assert hasattr(result, "confidence")
+        assert hasattr(result, "triggers_matched")
+
+    def test_detects_principle_from_keywords(self):
+        """Test that analysis detects principles based on keywords."""
+        memory = UserMemory(user_id="test")
+        behaviour_db = get_minimal_behaviour_db()
+
+        result = _analyze_user_behavior(
+            "I keep ordering food delivery", memory, behaviour_db
+        )
+
+        assert result.detected_principle_id == "friction_increase"
+        assert result.confidence > 0
+
+    def test_analysis_with_empty_memory(self):
+        """Test analysis works with empty memory."""
+        memory = UserMemory(user_id="test")
+        behaviour_db = get_minimal_behaviour_db()
+
+        result = _analyze_user_behavior("I have a problem", memory, behaviour_db)
+
+        assert isinstance(result, AnalysisResult)
+        # May or may not detect a principle, but should not crash
+
+
+class TestHandleLowConfidenceCase:
+    """Tests for _handle_low_confidence_case function."""
+
+    def test_returns_string_response(self):
+        """Test that function returns a string."""
+        behaviour_db = get_minimal_behaviour_db()
+
+        result = _handle_low_confidence_case(
+            "friction_increase", "I order food", 0.5, behaviour_db
+        )
+
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+    def test_response_contains_clarifying_marker(self):
+        """Test that response indicates need for clarification."""
+        behaviour_db = get_minimal_behaviour_db()
+
+        result = _handle_low_confidence_case(
+            "friction_increase", "I order food", 0.5, behaviour_db
+        )
+
+        assert "🤔" in result or "understand" in result.lower()
+
+    def test_response_contains_questions(self):
+        """Test that response includes questions."""
+        behaviour_db = get_minimal_behaviour_db()
+
+        result = _handle_low_confidence_case(
+            "friction_increase", "I order food", 0.5, behaviour_db
+        )
+
+        assert "?" in result
+
+    def test_handles_unknown_principle(self):
+        """Test graceful handling of unknown principle ID."""
+        behaviour_db = get_minimal_behaviour_db()
+
+        # Should not crash even with unknown principle
+        result = _handle_low_confidence_case(
+            "unknown_principle", "I have a problem", 0.3, behaviour_db
+        )
+
+        assert isinstance(result, str)
+
+
+class TestBuildTemplateResponse:
+    """Tests for _build_template_response function."""
+
+    def test_returns_string_response(self):
+        """Test that function returns a string."""
+        behaviour_db = get_minimal_behaviour_db()
+        analysis = AnalysisResult(
+            detected_principle_id="friction_increase",
+            reason="User mentions delivery",
+            intervention_suggestions=["Delete apps"],
+            confidence=0.8,
+            triggers_matched=["delivery"],
+            source="keyword",
+        )
+
+        result = _build_template_response(analysis, behaviour_db)
+
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+    def test_response_includes_principle_name(self):
+        """Test that response mentions the detected principle."""
+        behaviour_db = get_minimal_behaviour_db()
+        analysis = AnalysisResult(
+            detected_principle_id="friction_increase",
+            reason="User mentions delivery",
+            intervention_suggestions=["Delete apps"],
+            confidence=0.8,
+            triggers_matched=["delivery"],
+            source="keyword",
+        )
+
+        result = _build_template_response(analysis, behaviour_db)
+
+        assert "Friction Increase" in result or "friction" in result.lower()
+
+    def test_response_includes_interventions(self):
+        """Test that response includes suggested interventions."""
+        behaviour_db = get_minimal_behaviour_db()
+        analysis = AnalysisResult(
+            detected_principle_id="friction_increase",
+            reason="User mentions delivery",
+            intervention_suggestions=["Delete apps", "Remove cards"],
+            confidence=0.8,
+            triggers_matched=["delivery"],
+            source="keyword",
+        )
+
+        result = _build_template_response(analysis, behaviour_db)
+
+        assert "Delete apps" in result
+
+    def test_handles_no_principle_detected(self):
+        """Test graceful handling when no principle is detected."""
+        behaviour_db = get_minimal_behaviour_db()
+        analysis = AnalysisResult(
+            detected_principle_id=None,
+            reason="General guidance",
+            intervention_suggestions=["Try budgeting"],
+            confidence=0.3,
+            triggers_matched=[],
+            source="keyword",
+        )
+
+        result = _build_template_response(analysis, behaviour_db)
+
+        assert isinstance(result, str)
+        assert "guidance" in result.lower() or "suggestion" in result.lower()
+
+    def test_shows_confidence_for_low_scores(self):
+        """Test that low confidence scores are displayed."""
+        behaviour_db = get_minimal_behaviour_db()
+        analysis = AnalysisResult(
+            detected_principle_id="friction_increase",
+            reason="Uncertain",
+            intervention_suggestions=["Try something"],
+            confidence=0.65,  # Below 0.8 threshold
+            triggers_matched=["delivery"],
+            source="keyword",
+        )
+
+        result = _build_template_response(analysis, behaviour_db)
+
+        # Should show confidence percentage when < 0.8
+        assert "%" in result or "confidence" in result.lower()
+
+
+class TestIntegration:
+    """Integration tests for the full flow."""
+
+    def test_full_validation_and_analysis_flow(self):
+        """Test that validation and analysis work together."""
+        memory = UserMemory(user_id="test")
+        behaviour_db = get_minimal_behaviour_db()
+        user_input = "I keep ordering food delivery"
+
+        # Validate should pass
+        _validate_coach_inputs(user_input, memory, behaviour_db)
+
+        # Analysis should work
+        result = _analyze_user_behavior(user_input, memory, behaviour_db)
+
+        # Should detect principle
+        assert result.detected_principle_id is not None
+
+    def test_low_confidence_flow(self):
+        """Test low confidence detection and response generation."""
+        memory = UserMemory(user_id="test")
+        behaviour_db = get_minimal_behaviour_db()
+        user_input = "I keep ordering food delivery"
+
+        result = _analyze_user_behavior(user_input, memory, behaviour_db)
+        # Should detect principle
+        assert result.detected_principle_id is not None
+
+        # Simulate low confidence
+        if result.confidence < CONFIDENCE_THRESHOLD:
+            response = _handle_low_confidence_case(
+                result.detected_principle_id,
+                user_input,
+                result.confidence,
+                behaviour_db,
+            )
+            assert "?" in response
+
+    def test_template_response_flow(self):
+        """Test template response generation from analysis."""
+        memory = UserMemory(user_id="test")
+        behaviour_db = get_minimal_behaviour_db()
+        user_input = "I keep ordering food delivery"
+
+        result = _analyze_user_behavior(user_input, memory, behaviour_db)
+        response = _build_template_response(result, behaviour_db)
+
+        assert isinstance(response, str)
+        assert len(response) > 0

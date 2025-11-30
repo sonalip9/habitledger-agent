@@ -28,6 +28,95 @@ from .config import get_adk_model_name, get_api_key, load_env
 
 logger = logging.getLogger(__name__)
 
+# Module-level constants
+CONFIDENCE_THRESHOLD = 0.6
+MAX_INTERVENTIONS_PER_RESPONSE = 3
+LOW_CONFIDENCE_THRESHOLD = 0.4
+
+
+def _validate_coach_inputs(
+    user_input: str,
+    memory: UserMemory,
+    behaviour_db: dict[str, Any],
+) -> None:
+    """
+    Validate inputs for coach processing.
+
+    Args:
+        user_input: The user's message.
+        memory: UserMemory instance.
+        behaviour_db: Behaviour principles database.
+
+    Raises:
+        ValueError: If any validation check fails with descriptive message.
+
+    Example:
+        >>> _validate_coach_inputs("", UserMemory(), {})
+        Traceback (most recent call last):
+        ...
+        ValueError: user_input cannot be empty
+    """
+    if not user_input or not user_input.strip():
+        raise ValueError("user_input cannot be empty or whitespace")
+
+    if not isinstance(memory, UserMemory):
+        raise ValueError(
+            f"memory must be a UserMemory instance, got {type(memory).__name__}"
+        )
+
+    if not isinstance(behaviour_db, dict):
+        raise ValueError(
+            f"behaviour_db must be a dict, got {type(behaviour_db).__name__}"
+        )
+
+    if "principles" not in behaviour_db:
+        raise ValueError("behaviour_db must contain 'principles' key")
+
+    if not behaviour_db["principles"]:
+        raise ValueError("behaviour_db['principles'] cannot be empty")
+
+
+def _analyze_user_behavior(
+    user_input: str,
+    memory: UserMemory,
+    behaviour_db: dict[str, Any],
+) -> AnalysisResult:
+    """
+    Analyze user behavior and return structured result.
+
+    This function calls the behaviour analysis engine, logs the results,
+    and returns a structured AnalysisResult dataclass.
+
+    Args:
+        user_input: The user's message describing their situation.
+        memory: UserMemory instance for context.
+        behaviour_db: Behaviour principles database.
+
+    Returns:
+        AnalysisResult: Structured analysis with principle, confidence, etc.
+
+    Example:
+        >>> memory = UserMemory(user_id="user123")
+        >>> db = {"principles": [...]}
+        >>> result = _analyze_user_behavior("I keep ordering food", memory, db)
+        >>> print(result.detected_principle_id)
+        'friction_increase'
+    """
+    analysis_dict = analyse_behaviour(user_input, memory, behaviour_db)
+    analysis = AnalysisResult.from_dict(analysis_dict)
+
+    logger.info(
+        "Behaviour analysis complete",
+        extra={
+            "event": "behaviour_analysis",
+            "principle_id": analysis.detected_principle_id,
+            "confidence": analysis.confidence,
+            "triggers_matched": len(analysis.triggers_matched),
+        },
+    )
+
+    return analysis
+
 
 def _handle_low_confidence_case(
     principle_id: str,
@@ -510,10 +599,12 @@ def run_once(
     Process a single user interaction and generate a coaching response.
 
     This function orchestrates the core agent loop for one interaction:
-    1. Analyzes user input to detect relevant behavioural principles
-    2. Attempts to generate response via ADK agent (with tool calling support)
-    3. Falls back to template-based response if ADK fails
-    4. Updates user memory with the interaction outcome
+    1. Validates inputs
+    2. Analyzes user input to detect relevant behavioural principles
+    3. Handles low-confidence detections with clarifying questions
+    4. Attempts to generate response via ADK agent (with tool calling support)
+    5. Falls back to template-based response if ADK fails
+    6. Updates user memory with the interaction outcome
 
     Args:
         user_input: The user's message or description of their situation.
@@ -524,6 +615,9 @@ def run_once(
         str: A coaching response (ADK-generated or template-based) with principle
              detection and interventions, or general guidance if no principle detected.
 
+    Raises:
+        ValueError: If inputs are invalid (via _validate_coach_inputs).
+
     Example:
         >>> memory = UserMemory(user_id="user123")
         >>> db = load_behaviour_db("data/behaviour_principles.json")
@@ -531,15 +625,18 @@ def run_once(
         >>> print(response)
         🎯 Detected Principle: Friction Increase (Make Bad Habits Hard)...
     """
+    # Step 0: Validate inputs
+    _validate_coach_inputs(user_input, memory, behaviour_db)
+
     # Record user input in conversation history
     memory.add_conversation_turn("user", user_input)
 
     # Step 1: Analyze user behaviour
-    analysis_dict = analyse_behaviour(user_input, memory, behaviour_db)
-    analysis = AnalysisResult.from_dict(analysis_dict)
+    analysis = _analyze_user_behavior(user_input, memory, behaviour_db)
+    analysis_dict = analysis.to_dict()
 
     # Step 2: Check confidence and handle low-confidence detections
-    if analysis.confidence < 0.6 and analysis.detected_principle_id:
+    if analysis.confidence < CONFIDENCE_THRESHOLD and analysis.detected_principle_id:
         response = _handle_low_confidence_case(
             analysis.detected_principle_id,
             user_input,
