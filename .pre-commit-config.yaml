@@ -32,5 +32,14 @@ repos:
       - id: check-toml
       - id: mixed-line-ending
 
+  - repo: local
+    hooks:
+      - id: pytest
+        name: Run tests
+        entry: python -m pytest tests/ -q --tb=short
+        language: system
+        pass_filenames: false
+        stages: [push]
+
 default_language_version:
   python: python3.13
