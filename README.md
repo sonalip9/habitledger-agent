@@ -408,6 +408,37 @@ The notebook demonstrates:
 - Memory state inspection
 - Evaluation criteria
 
+### 4. Cloud Deployment (REST API)
+
+Deploy HabitLedger to Google Cloud Run for remote access:
+
+```bash
+# Quick deploy
+export GCP_PROJECT_ID="your-project-id"
+export GOOGLE_API_KEY="your-api-key"
+./scripts/deploy_cloudrun.sh
+```
+
+The deployed service provides:
+
+- **REST API endpoints**: `/chat`, `/health`, `/docs`
+- **Multi-user support**: Isolated sessions per user_id
+- **Auto-scaling**: Scales to zero when idle (no cost)
+- **OpenAPI documentation**: Interactive API docs at `/docs`
+
+**API Example:**
+
+```bash
+curl -X POST https://your-service-url/chat \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "user_id": "demo",
+    "message": "I keep ordering food delivery"
+  }'
+```
+
+📚 **See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for full deployment guide**
+
 ---
 
 ## 🧪 Evaluation of the Agent

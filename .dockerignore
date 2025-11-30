@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Data files (not needed in container)
+*.json
+!data/behaviour_principles.json
+
+# Notebooks
+notebooks/
+*.ipynb
+
+# CI/CD
+.github/
+
+# Local development
+.env
+.env.local
+memory_*.json

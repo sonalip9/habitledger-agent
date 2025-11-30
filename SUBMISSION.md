@@ -115,8 +115,6 @@ User Input → Coach Agent (Root Orchestrator)
 | **Average Interventions** | 4.8 per scenario | Consistently provides actionable suggestions |
 | **Response Latency** | <1ms (keyword) / 500-2000ms (LLM) | Fast fallback when LLM unavailable |
 
-See [docs/EVALUATION_RESULTS.md](docs/EVALUATION_RESULTS.md) for complete test methodology and detailed metrics.
-
 **Quick Start:**
 
 ```bash
@@ -125,6 +123,60 @@ cd habitledger-agent && pip install -r requirements.txt
 echo "GOOGLE_API_KEY=your_key" > .env
 jupyter notebook notebooks/demo.ipynb  # Interactive demo
 python -m src.habitledger_adk.runner   # CLI agent
+```
+
+---
+
+## Cloud Deployment
+
+✅ **Agent Deployment Ready**: HabitLedger includes full Google Cloud Run deployment configuration, demonstrating production-ready agent architecture.
+
+**Deployment Artifacts:**
+
+- **FastAPI Server** (`app.py`) - REST API with `/chat`, `/health`, and `/docs` endpoints
+- **Container Configuration** (`Dockerfile`) - Python 3.13-slim with optimized layers
+- **Deployment Automation** (`scripts/deploy_cloudrun.sh`) - One-command Cloud Run deployment
+- **Comprehensive Documentation** (`docs/DEPLOYMENT.md`) - Complete deployment guide with troubleshooting
+
+**API Endpoints:**
+
+```bash
+# Health check
+GET /health
+→ {"status": "healthy", "service": "habitledger-agent"}
+
+# Chat interaction
+POST /chat
+{
+  "user_id": "demo",
+  "message": "I keep ordering food delivery"
+}
+→ {
+  "user_id": "demo",
+  "response": "I understand you're struggling with food delivery...",
+  "session_id": "session_demo",
+  "status": "success"
+}
+
+# Interactive API docs
+GET /docs
+→ Swagger UI with live endpoint testing
+```
+
+**Architecture Highlights:**
+
+- **Async endpoints** - FastAPI with async/await matches ADK runner architecture
+- **Session isolation** - Per-user sessions with InMemorySessionService
+- **Auto-scaling** - Scales to zero (min-instances=0) to minimize costs
+- **Health monitoring** - Cloud Run health checks for uptime tracking
+- **Structured logging** - Cloud Logging integration with searchable events
+
+**Quick Deploy (Optional):**
+
+```bash
+export GCP_PROJECT_ID="your-project-id"
+export GOOGLE_API_KEY="your-api-key"
+./scripts/deploy_cloudrun.sh
 ```
 
 ---
@@ -182,9 +234,3 @@ python -m src.habitledger_adk.runner   # CLI agent
 **Transparency** - Structured logs enable users to audit why specific interventions were suggested.
 
 **Safety** - Deterministic keyword fallback prevents hallucinated principles when LLM confidence is low.
-
----
-
-**Repository:** <https://github.com/sonalip9/habitledger-agent>
-**Demo Notebook:** `notebooks/demo.ipynb`
-**Documentation:** Comprehensive docs in `README.md` and `docs/` folder
